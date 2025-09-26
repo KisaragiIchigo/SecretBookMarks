@@ -1,0 +1,1 @@
+pyinstaller --onefile --noconsole --name "secret_bookmarks" --icon "SecretBookMarks.ico" --collect-data PySide6:qt6_plugins/platforms secret_bookmarks.py
