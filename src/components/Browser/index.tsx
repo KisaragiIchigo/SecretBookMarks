@@ -71,15 +71,25 @@ export function Browser({ visible, homeUrl, onBookmarkPage }: BrowserProps) {
 
   const activeView = activeId ? views.current.get(activeId) : undefined
 
-  // マウスのサイドボタン。Main から届いた方向をアクティブなタブへ流す。
-  useEffect(() => {
-    return window.sbm.events.onBrowserNavigate((direction) => {
-      const view = activeId ? views.current.get(activeId) : undefined
-      if (!view) return
-      if (direction === 'back') view.goBack()
-      else view.goForward()
-    })
-  }, [activeId])
+  /**
+   * 履歴の操作は Main 側へ委ねる。
+   * Renderer が持つ canGoBack は同期の取りこぼしでずれることがあり、
+   * それをボタンの有効・無効に使うと「押せない」形で表面化するため。
+   */
+  const navigateHistory = useCallback(
+    (direction: 'back' | 'forward' | 'reload' | 'stop') => {
+      const contentsId = active?.contentsId
+      if (contentsId === undefined || contentsId === null) return
+      void window.sbm.browser.navigate(contentsId, direction)
+    },
+    [active?.contentsId],
+  )
+
+  // マウスのサイドボタン。Main から届いた方向をそのまま流す。
+  useEffect(
+    () => window.sbm.events.onBrowserNavigate((direction) => navigateHistory(direction)),
+    [navigateHistory],
+  )
 
   const navigate = (event: FormEvent) => {
     event.preventDefault()
@@ -153,20 +163,21 @@ export function Browser({ visible, homeUrl, onBookmarkPage }: BrowserProps) {
       <div className="flex h-11 shrink-0 items-center gap-1.5 border-b border-white/[0.06] px-2">
         <IconButton
           label="戻る"
-          icon={<ArrowLeft className="h-4 w-4" />}
-          disabled={!active?.canGoBack}
-          onClick={() => activeView?.goBack()}
+          icon={<ArrowLeft className={cn('h-4 w-4', !active?.canGoBack && 'opacity-40')} />}
+          disabled={!active}
+          onClick={() => navigateHistory('back')}
         />
         <IconButton
           label="進む"
-          icon={<ArrowRight className="h-4 w-4" />}
-          disabled={!active?.canGoForward}
-          onClick={() => activeView?.goForward()}
+          icon={<ArrowRight className={cn('h-4 w-4', !active?.canGoForward && 'opacity-40')} />}
+          disabled={!active}
+          onClick={() => navigateHistory('forward')}
         />
         <IconButton
           label={active?.loading ? '読み込みを中止' : '再読み込み'}
           icon={active?.loading ? <X className="h-4 w-4" /> : <RotateCw className="h-4 w-4" />}
-          onClick={() => (active?.loading ? activeView?.stop() : activeView?.reload())}
+          disabled={!active}
+          onClick={() => navigateHistory(active?.loading ? 'stop' : 'reload')}
         />
         <IconButton
           label="ホーム"

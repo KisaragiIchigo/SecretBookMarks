@@ -74,6 +74,11 @@ export const openBookmarkSchema = z.object({ id: idSchema, external: z.boolean()
 
 export const contentsIdSchema = z.object({ contentsId: z.number().int().nonnegative() })
 
+export const navigateSchema = z.object({
+  contentsId: z.number().int().nonnegative(),
+  direction: z.enum(['back', 'forward', 'reload', 'stop']),
+})
+
 export const startDownloadSchema = z.object({
   url: httpUrlSchema,
   kind: z.enum(['file', 'hls']),

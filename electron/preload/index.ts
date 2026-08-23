@@ -78,6 +78,8 @@ const api = {
     mediaList: (contentsId: number) => call<MediaCandidate[]>(IPC.browserMediaList, { contentsId }),
     mediaClear: (contentsId: number) => call<boolean>(IPC.browserMediaClear, { contentsId }),
     scanPage: (contentsId: number) => call<MediaCandidate[]>(IPC.browserScanPage, { contentsId }),
+    navigate: (contentsId: number, direction: 'back' | 'forward' | 'reload' | 'stop') =>
+      call<boolean>(IPC.browserNavigate, { contentsId, direction }),
     clearData: () => call<boolean>(IPC.browserClearData),
   },
   adblock: {

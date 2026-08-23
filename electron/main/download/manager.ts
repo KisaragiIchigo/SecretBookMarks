@@ -63,23 +63,69 @@ function extensionFromUrl(url: string, fallbackExt: string): string {
   return fallbackExt || '.mp4'
 }
 
-/**
- * 保存時の既定のファイル名。
- * 動画サイトの URL は /get_file/abc123 のように内容を表さないことが多いため、
- * ページタイトルを優先する。右クリックからでも一覧からでも同じ名前になる。
- */
-function guessFileName(url: string, fallbackExt: string, pageTitle?: string): string {
-  const ext = extensionFromUrl(url, fallbackExt)
-  const fromTitle = sanitizeFileName(pageTitle ?? '')
-  if (fromTitle && fromTitle !== 'download') return `${fromTitle}${ext}`
+// /video/ や /watch/ のような、ID ではない区切りの語
+const PATH_NOISE = /^(video|videos|watch|embed|player|play|movie|movies|media|file|files|get_file|stream|v|e|w)$/i
 
-  try {
-    const path = new URL(url).pathname
-    const last = decodeURIComponent(path.split('/').filter(Boolean).pop() ?? '')
-    if (last) return sanitizeFileName(extname(last) ? last : `${last}${ext}`)
-  } catch {
-    // 下の既定名へ落ちる。
+/**
+ * 動画を特定する ID を URL から取り出す。
+ * ページ URL 側にサイト内での ID が入っていることが多いので、そちらを優先する。
+ * 見つからなければメディア URL の末尾（拡張子を除いた部分）で代用する。
+ */
+function extractId(pageUrl: string, mediaUrl: string): string {
+  for (const source of [pageUrl, mediaUrl]) {
+    if (!source) continue
+    let parsed: URL
+    try {
+      parsed = new URL(source)
+    } catch {
+      continue
+    }
+
+    // ?v=xxxx / ?id=xxxx の形
+    for (const key of ['v', 'id', 'vid', 'video_id']) {
+      const value = parsed.searchParams.get(key)
+      if (value && /^[\w-]{3,32}$/.test(value)) return value
+    }
+
+    const segments = parsed.pathname.split('/').filter(Boolean).map((part) => {
+      try {
+        return decodeURIComponent(part)
+      } catch {
+        return part
+      }
+    })
+
+    // 数字だけの区画は、ほぼサイト内の ID
+    const numeric = segments.find((part) => /^\d{2,}$/.test(part))
+    if (numeric) return numeric
+
+    // それ以外は、区切り語でない英数字の区画を後ろから探す
+    for (let i = segments.length - 1; i >= 0; i -= 1) {
+      const bare = segments[i].replace(extname(segments[i]), '')
+      if (!bare || PATH_NOISE.test(bare)) continue
+      if (/^[\w-]{3,32}$/.test(bare)) return bare
+    }
   }
+  return ''
+}
+
+/**
+ * 保存時の既定のファイル名。「タイトル_ID.拡張子」の順で組み立てる。
+ * 動画サイトの URL は内容を表さないことが多いためタイトルを主に据えつつ、
+ * 同じタイトルの動画を区別できるよう ID を添える。
+ */
+function guessFileName(url: string, fallbackExt: string, pageTitle?: string, pageUrl?: string): string {
+  const ext = extensionFromUrl(url, fallbackExt)
+  const title = sanitizeFileName(pageTitle ?? '')
+  const id = sanitizeFileName(extractId(pageUrl ?? '', url))
+
+  const hasTitle = Boolean(title) && title !== 'download'
+  // タイトルに既に ID が含まれている場合は重ねない
+  const needsId = Boolean(id) && !(hasTitle && title.toLowerCase().includes(id.toLowerCase()))
+
+  if (hasTitle) return `${title}${needsId ? `_${id}` : ''}${ext}`
+  if (id) return `${id}${ext}`
+
   const stamp = new Date().toISOString().slice(0, 19).replace(/[:T-]/g, '')
   return sanitizeFileName(`video-${stamp}${ext}`)
 }
@@ -141,7 +187,7 @@ class DownloadManager extends EventEmitter {
   async start(input: StartDownloadInput): Promise<DownloadTask | null> {
     const dir = this.downloadDir()
     const fallbackExt = input.kind === 'hls' ? '.mp4' : ''
-    let fileName = sanitizeFileName(input.fileName ?? guessFileName(input.url, fallbackExt, input.pageTitle))
+    let fileName = sanitizeFileName(input.fileName ?? guessFileName(input.url, fallbackExt, input.pageTitle, input.pageUrl))
     if (input.kind === 'hls' && !/\.(mp4|mkv|ts)$/i.test(fileName)) fileName = `${fileName}.mp4`
 
     let savePath: string

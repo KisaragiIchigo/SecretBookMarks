@@ -1,4 +1,4 @@
-import { dialog } from 'electron'
+import { dialog, webContents } from 'electron'
 import { IPC } from '@shared/ipc'
 import type { AdblockStatusView, AppSettings, DownloadTask, FilterListInfo, MediaCandidate } from '@shared/types'
 import { FILTER_LISTS, adblockStatus, setAdblockEnabled, updateFilters } from '../browser/adblock'
@@ -10,12 +10,35 @@ import { ffmpegStatus } from '../download/ffmpeg'
 import { saveSettings } from '../settings'
 import { getMainWindow } from '../window'
 import { register, registerVoid } from './register'
-import { adblockToggleSchema, contentsIdSchema, downloadIdSchema, startDownloadSchema } from './schemas'
+import { adblockToggleSchema, contentsIdSchema, downloadIdSchema, navigateSchema, startDownloadSchema } from './schemas'
 
 export function registerBrowserHandlers(): void {
   register(IPC.browserMediaList, contentsIdSchema, ({ contentsId }): MediaCandidate[] =>
     mediaCandidates(contentsId),
   )
+
+  /**
+   * 履歴の操作は Main 側の webContents を直接触る。
+   * Renderer の状態（canGoBack 等）を経由すると、同期の取りこぼしがそのまま
+   * 「ボタンが効かない」に化けるため、判断も実行も権威ある側で行う。
+   */
+  register(IPC.browserNavigate, navigateSchema, ({ contentsId, direction }) => {
+    const contents = webContents.fromId(contentsId)
+    if (!contents || contents.isDestroyed()) return false
+    const history = contents.navigationHistory
+    if (direction === 'back') {
+      if (!history.canGoBack()) return false
+      history.goBack()
+    } else if (direction === 'forward') {
+      if (!history.canGoForward()) return false
+      history.goForward()
+    } else if (direction === 'reload') {
+      contents.reload()
+    } else {
+      contents.stop()
+    }
+    return true
+  })
 
   register(IPC.browserScanPage, contentsIdSchema, ({ contentsId }): Promise<MediaCandidate[]> =>
     scanPageMedia(contentsId),
