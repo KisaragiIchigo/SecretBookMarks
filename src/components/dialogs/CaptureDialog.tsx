@@ -42,12 +42,19 @@ export function CaptureDialog({ draft, onClose, onSubmit }: CaptureDialogProps) 
   }, [draft])
 
   const fetchMeta = useCallback(
-    async (url: string, options: { overwriteTitle?: boolean } = {}) => {
+    async (url: string, options: { overwriteTitle?: boolean; contentsId?: number | null } = {}) => {
       if (!isHttpUrl(url)) return
       const overwriteTitle = options.overwriteTitle ?? true
       setFetching(true)
       try {
-        const meta = await window.sbm.meta.fetchPage(url)
+        // ブラウザのタブから追加した場合は、開いているページの DOM を読む。
+        // URL を取り直す方式では、ログインや年齢確認を挟むサイトで別のページを
+        // 掴んでしまい、タグ候補が得られない（実測で確認済み）。
+        const fromTab = options.contentsId ?? null
+        const meta =
+          fromTab !== null
+            ? await window.sbm.browser.pageMeta(fromTab)
+            : await window.sbm.meta.fetchPage(url)
         setKeywords(meta.keywords)
 
         const current = formRef.current
@@ -89,7 +96,7 @@ export function CaptureDialog({ draft, onClose, onSubmit }: CaptureDialogProps) 
     if (!draft || draft.id || !draft.url) return
     if (autoFetchedRef.current === draft.url) return
     autoFetchedRef.current = draft.url
-    void fetchMeta(draft.url, { overwriteTitle: false })
+    void fetchMeta(draft.url, { overwriteTitle: false, contentsId: draft.contentsId })
   }, [draft, fetchMeta])
 
   const domain = form ? extractDomain(form.url) : ''
@@ -183,7 +190,7 @@ export function CaptureDialog({ draft, onClose, onSubmit }: CaptureDialogProps) 
             <Button
               type="button"
               icon={<Download className="h-3.5 w-3.5" />}
-              onClick={() => void fetchMeta(form.url)}
+              onClick={() => void fetchMeta(form.url, { contentsId: form.contentsId })}
               disabled={!urlValid || fetching}
               className="shrink-0"
             >

@@ -4,6 +4,32 @@
   "entries": [
     {
       "date": "2026-08-23",
+      "summary": "ブラウザからのブックマークでタグが付かない問題を修正し、ログイン情報の暗号化保管を追加した",
+      "purpose": "ブックマークボタン経由でタグが付かない件への対応と、サイトのログイン情報を平文で残さずに保管する要望への対応。",
+      "targets": [
+        "electron/main/browser/pageTitle.ts / credentialFill.ts（新規）",
+        "electron/main/vault/secrets.ts / credentials.ts（新規）",
+        "electron/main/vault/session.ts / ipc/credentialHandlers.ts（新規）",
+        "electron/preload/webviewGuard.ts / index.ts / shared/types.ts / shared/ipc.ts",
+        "src/components/dialogs/CredentialSaveDialog.tsx（新規）/ SettingsDialog.tsx",
+        "src/components/Browser/index.tsx / src/App.tsx / src/hooks/useCaptureFlow.ts / README.md"
+      ],
+      "changes": [
+        "タグ取得: ブラウザからの追加では、Main が URL を取り直すのではなく、開いているページの DOM から keywords と article:tag を読むようにした。ログインや年齢確認を挟むサイトでは取り直しが別のページを掴んでしまい、キーワードが空になることを実測で確認したため。",
+        "タグ取得: この経路では HTML を取り直さないため、ファビコンは別途取得キューへ積む。",
+        "ログイン情報: ヴォールトへ credentials を追加。パスワードはマスター鍵から HKDF で導いた副鍵で個別に AES-256-GCM 暗号化し、解錠中のモデル上でも暗号のまま保持する。副鍵は保存せず毎回導出する。",
+        "ログイン情報: ログインフォームの送信をゲスト側の preload で検知し、保存するかを利用者に確認する。保存を選ぶまで値はどこにも書かない。",
+        "ログイン情報: 自動入力は Main プロセスからページへ直接注入する。復号した値は画面側へ渡さない。送信までは行わず、内容を確認してから利用者が押せるようにした。",
+        "ログイン情報: 設定に一覧を追加（サイトと利用者名のみ表示、明示的に選んだときだけパスワードを表示、削除も可能）。"
+      ],
+      "impact": "ヴォールトの形式に credentials が増えたが、既存のヴォールトは読み込み時に空配列で補完されるため移行は不要。",
+      "concerns": [
+        "ログインフォームの検知は一般的な form 構造を前提にした経験則。独自実装のログイン画面では検知できないことがある。",
+        "自動入力は同じサイトに複数の情報がある場合、最初の1件を使う。選択の UI は未実装。"
+      ]
+    },
+    {
+      "date": "2026-08-23",
       "summary": "ブラウザからのブックマーク追加でタグが付かない問題と、Ctrl+クリックでタブが切り替わる問題を修正した",
       "purpose": "実使用で挙がった2点への対応。",
       "targets": [

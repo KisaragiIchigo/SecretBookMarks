@@ -1,4 +1,5 @@
 import { EventEmitter } from 'node:events'
+import { hkdfSync } from 'node:crypto'
 import type { SaveState, VaultModel } from '@shared/types'
 import { DEFAULT_KDF, createSalt, deriveKey, open, seal, WrongPasswordError } from './crypto'
 import { readVaultFile, rotateBackup, vaultExists, vaultPath, writeVaultFile } from './file'
@@ -14,7 +15,7 @@ interface UnlockedState {
 }
 
 function emptyModel(): VaultModel {
-  return { version: MODEL_VERSION, bookmarks: [], favicons: {}, cookies: [], downloads: [] }
+  return { version: MODEL_VERSION, bookmarks: [], favicons: {}, cookies: [], downloads: [], credentials: [] }
 }
 
 /**
@@ -45,6 +46,16 @@ class VaultSession extends EventEmitter {
     return this.saveState
   }
 
+  /**
+   * 用途ごとの副鍵をマスター鍵から導出する。
+   * パスワードのように、解錠中でも平文で持ち歩きたくない値の暗号化に使う。
+   * 副鍵は保存しない（毎回導出する）ため、ヴォールトの外に鍵が残らない。
+   */
+  deriveSubkey(info: string): Buffer {
+    if (!this.state) throw new Error('ヴォールトがロックされています。')
+    return Buffer.from(hkdfSync('sha256', this.state.key, this.state.salt, Buffer.from(info, 'utf8'), 32))
+  }
+
   getModel(): VaultModel {
     if (!this.state) throw new Error('ヴォールトがロックされています。')
     return this.state.model
@@ -70,6 +81,7 @@ class VaultSession extends EventEmitter {
       favicons: parsed.favicons ?? {},
       cookies: Array.isArray(parsed.cookies) ? parsed.cookies : [],
       downloads: Array.isArray(parsed.downloads) ? parsed.downloads : [],
+      credentials: Array.isArray(parsed.credentials) ? parsed.credentials : [],
     }
     this.state = { key: opened.key, salt: opened.salt, model }
     this.touch()

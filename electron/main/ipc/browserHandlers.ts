@@ -5,10 +5,11 @@ import { FILTER_LISTS, adblockStatus, setAdblockEnabled, updateFilters } from '.
 import { clearBrowserData } from '../browser/session'
 import { clearMediaFor, mediaCandidates } from '../browser/mediaSniffer'
 import { scanPageMedia } from '../browser/domScanner'
-import { resolvePageTitle } from '../browser/pageTitle'
+import { resolvePageMeta, resolvePageTitle } from '../browser/pageTitle'
+import { enqueueFavicon } from '../metadata/faviconQueue'
 import { downloads } from '../download/manager'
 import { ffmpegStatus } from '../download/ffmpeg'
-import { saveSettings } from '../settings'
+import { loadSettings, saveSettings } from '../settings'
 import { getMainWindow } from '../window'
 import { register, registerVoid } from './register'
 import { adblockToggleSchema, contentsIdSchema, downloadIdSchema, navigateSchema, startDownloadSchema } from './schemas'
@@ -39,6 +40,17 @@ export function registerBrowserHandlers(): void {
       contents.stop()
     }
     return true
+  })
+
+  // 開いているページからタイトルとタグ候補を読む。取り直しでは通れない壁があるため。
+  register(IPC.browserPageMeta, contentsIdSchema, async ({ contentsId }) => {
+    const meta = await resolvePageMeta(contentsId)
+    // この経路では HTML を取り直さないため、ファビコンは別途取りに行く。
+    const contents = webContents.fromId(contentsId)
+    if (contents && !contents.isDestroyed() && loadSettings().fetchFavicons) {
+      enqueueFavicon(contents.getURL())
+    }
+    return meta
   })
 
   register(IPC.browserScanPage, contentsIdSchema, ({ contentsId }): Promise<MediaCandidate[]> =>

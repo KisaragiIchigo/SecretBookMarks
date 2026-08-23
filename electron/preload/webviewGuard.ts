@@ -41,3 +41,42 @@ const onNavigationButton = (event: MouseEvent) => {
 
 window.addEventListener('mouseup', onNavigationButton, true)
 window.addEventListener('auxclick', onNavigationButton, true)
+
+/**
+ * ログインフォームの送信を検知して Main へ渡す。
+ * 保存するかどうかは利用者に確認し、保存する場合もヴォールト内で暗号化される。
+ * ここで拾った値はディスクへは書かれない。
+ */
+const findLoginFields = (form: HTMLFormElement) => {
+  const password = form.querySelector<HTMLInputElement>('input[type="password"]')
+  if (!password || !password.value) return null
+
+  const inputs = Array.from(form.querySelectorAll<HTMLInputElement>('input'))
+  const passwordIndex = inputs.indexOf(password)
+  // 利用者名はパスワード欄より前にある入力欄のうち、いちばん近いものを採る
+  const username = inputs
+    .slice(0, passwordIndex)
+    .reverse()
+    .find((input) => {
+      const type = (input.type || '').toLowerCase()
+      return input.value && ['text', 'email', 'tel', 'username', ''].includes(type)
+    })
+
+  return { username: username?.value ?? '', password: password.value }
+}
+
+window.addEventListener(
+  'submit',
+  (event) => {
+    const form = event.target as HTMLFormElement | null
+    if (!form || typeof form.querySelector !== 'function') return
+    const found = findLoginFields(form)
+    if (!found) return
+    ipcRenderer.send('sbm:credential-capture', {
+      origin: location.origin,
+      username: found.username,
+      password: found.password,
+    })
+  },
+  true,
+)

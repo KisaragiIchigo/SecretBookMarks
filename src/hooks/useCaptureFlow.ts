@@ -12,6 +12,8 @@ export interface CaptureDraft {
   note: string
   group: string
   favorite: boolean
+  /** ブラウザから追加した場合の元タブ。ページの DOM を直接読むために使う */
+  contentsId: number | null
 }
 
 export interface DuplicatePrompt {
@@ -27,6 +29,7 @@ const EMPTY_DRAFT: CaptureDraft = {
   note: '',
   group: '',
   favorite: false,
+  contentsId: null,
 }
 
 function toInput(draft: CaptureDraft): BookmarkInput {
@@ -51,8 +54,8 @@ export function useCaptureFlow() {
   const [duplicate, setDuplicate] = useState<DuplicatePrompt | null>(null)
 
   // タグはそのページから取得したものだけを入れる（他のブックマークからは引き継がない）。
-  const openAdd = useCallback((url = '', title = '') => {
-    setDraft({ ...EMPTY_DRAFT, url, title })
+  const openAdd = useCallback((url = '', title = '', contentsId: number | null = null) => {
+    setDraft({ ...EMPTY_DRAFT, url, title, contentsId })
   }, [])
 
   const openEdit = useCallback((bookmark: Bookmark) => {
@@ -64,6 +67,7 @@ export function useCaptureFlow() {
       note: bookmark.note,
       group: bookmark.group,
       favorite: bookmark.favorite,
+      contentsId: null,
     })
   }, [])
 
@@ -121,7 +125,7 @@ export function useCaptureFlow() {
     const unsubscribers = [
       window.sbm.events.onClipboardUrl((url) => openAdd(url)),
       window.sbm.events.onQuickAdd(() => openAdd()),
-      window.sbm.events.onBrowserCapturePage(({ url, title }) => openAdd(url, title)),
+      window.sbm.events.onBrowserCapturePage(({ url, title, contentsId }) => openAdd(url, title, contentsId)),
     ]
     return () => unsubscribers.forEach((unsubscribe) => unsubscribe())
   }, [openAdd, phase])

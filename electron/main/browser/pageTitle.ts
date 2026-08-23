@@ -11,10 +11,18 @@ const COLLECTOR = `(() => {
   const text = (value) => (typeof value === 'string' ? value.replace(/\\s+/g, ' ').trim() : '')
   const meta = (selector) => text(document.querySelector(selector)?.getAttribute('content'))
   const heading = document.querySelector('h1')
+  const tags = []
+  const keywords = meta('meta[name="keywords"]')
+  if (keywords) tags.push.apply(tags, keywords.split(/[,、|]/))
+  const articleTags = document.querySelectorAll('meta[property="article:tag"]')
+  for (var i = 0; i < articleTags.length; i++) {
+    tags.push(text(articleTags[i].getAttribute('content')))
+  }
   return JSON.stringify({
     og: meta('meta[property="og:title"]') || meta('meta[name="twitter:title"]'),
     h1: text(heading?.textContent),
     title: text(document.title),
+    keywords: tags.map(text).filter(Boolean).slice(0, 12),
   })
 })()`
 
@@ -62,6 +70,49 @@ export function pickTitle(
   if (og.length >= 4) return og
   if (h1.length >= 4) return h1
   return cleanedTitle
+}
+
+export interface PageMetaFromDom {
+  title: string
+  keywords: string[]
+}
+
+/**
+ * 開いているページから直接、タイトルとタグ候補を読む。
+ *
+ * Main から URL を取り直す方式では、ログインや年齢確認を挟むサイトで
+ * 別のページを掴んでしまいキーワードが得られない（実測で確認済み）。
+ * 目の前で表示できている DOM を読むのが最も確実。
+ */
+export async function resolvePageMeta(contentsId: number): Promise<PageMetaFromDom> {
+  const contents = webContents.fromId(contentsId)
+  if (!contents || contents.isDestroyed()) return { title: '', keywords: [] }
+
+  let host = ''
+  try {
+    host = new URL(contents.getURL()).hostname
+  } catch {
+    host = ''
+  }
+
+  try {
+    const raw = (await contents.executeJavaScript(COLLECTOR, false)) as string
+    const parsed = JSON.parse(raw) as {
+      og?: string
+      h1?: string
+      title?: string
+      keywords?: string[]
+    }
+    return {
+      title: pickTitle(
+        { og: parsed.og ?? '', h1: parsed.h1 ?? '', title: parsed.title ?? '' },
+        host,
+      ),
+      keywords: Array.isArray(parsed.keywords) ? parsed.keywords : [],
+    }
+  } catch {
+    return { title: stripSiteSuffix(contents.getTitle(), host), keywords: [] }
+  }
 }
 
 /** 指定タブのタイトルを解決する。取得できなければ webContents のタイトルで代用する。 */

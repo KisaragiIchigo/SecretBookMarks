@@ -253,7 +253,7 @@ export function Workspace({ settings, mode, onOpenSettings, onNavigate }: Worksp
       <Browser
         visible={mode === 'browser'}
         homeUrl={settings.browserHomeUrl}
-        onBookmarkPage={(url, title) => capture.openAdd(url, title)}
+        onBookmarkPage={(url, title, contentsId) => capture.openAdd(url, title, contentsId)}
       />
 
       <StatusBar

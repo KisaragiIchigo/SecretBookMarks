@@ -11,6 +11,8 @@ import type {
   DuplicateResolution,
   ExportFormat,
   ExportSummary,
+  CredentialCapture,
+  CredentialSummary,
   DownloadTask,
   FilterListInfo,
   ImportSummary,
@@ -78,6 +80,8 @@ const api = {
     mediaList: (contentsId: number) => call<MediaCandidate[]>(IPC.browserMediaList, { contentsId }),
     mediaClear: (contentsId: number) => call<boolean>(IPC.browserMediaClear, { contentsId }),
     scanPage: (contentsId: number) => call<MediaCandidate[]>(IPC.browserScanPage, { contentsId }),
+    pageMeta: (contentsId: number) =>
+      call<{ title: string; keywords: string[] }>(IPC.browserPageMeta, { contentsId }),
     navigate: (contentsId: number, direction: 'back' | 'forward' | 'reload' | 'stop') =>
       call<boolean>(IPC.browserNavigate, { contentsId, direction }),
     clearData: () => call<boolean>(IPC.browserClearData),
@@ -104,6 +108,16 @@ const api = {
     clearHistory: () => call<number>(IPC.downloadClearHistory),
     chooseDir: () => call<AppSettings | null>(IPC.downloadChooseDir),
     ffmpegStatus: () => call<{ available: boolean; path: string | null }>(IPC.downloadFfmpegStatus),
+  },
+  credentials: {
+    list: () => call<CredentialSummary[]>(IPC.credentialList),
+    forOrigin: (origin: string) => call<CredentialSummary[]>(IPC.credentialForOrigin, { origin }),
+    save: (origin: string, username: string, password: string) =>
+      call<CredentialSummary>(IPC.credentialSave, { origin, username, password }),
+    remove: (id: string) => call<boolean>(IPC.credentialDelete, { id }),
+    /** 利用者が明示的に表示を求めたときだけ使う */
+    reveal: (id: string) => call<{ username: string; password: string } | null>(IPC.credentialReveal, { id }),
+    fill: (contentsId: number, id: string) => call<boolean>(IPC.credentialFill, { contentsId, id }),
   },
   settings: {
     get: () => call<AppSettings>(IPC.settingsGet),
@@ -138,10 +152,14 @@ const api = {
     onDownloadChanged: (listener: (task: DownloadTask) => void) => subscribe(IPC_EVENT.downloadChanged, listener),
     onBrowserOpenUrl: (listener: (payload: { url: string; active: boolean }) => void) =>
       subscribe(IPC_EVENT.browserOpenUrl, listener),
-    onBrowserCapturePage: (listener: (payload: { url: string; title: string }) => void) =>
+    onBrowserCapturePage: (
+      listener: (payload: { url: string; title: string; contentsId: number | null }) => void,
+    ) =>
       subscribe(IPC_EVENT.browserCapturePage, listener),
     onBrowserNavigate: (listener: (direction: 'back' | 'forward') => void) =>
       subscribe(IPC_EVENT.browserNavigate, listener),
+    onCredentialCaptured: (listener: (capture: CredentialCapture) => void) =>
+      subscribe(IPC_EVENT.credentialCaptured, listener),
   },
 }
 

@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import * as Tooltip from '@radix-ui/react-tooltip'
 import { Loader2 } from 'lucide-react'
 import { DownloadsDialog } from '@/components/Downloads'
+import { CredentialSaveDialog } from '@/components/dialogs/CredentialSaveDialog'
 import { TitleBar, type AppMode } from '@/components/TitleBar'
+import type { CredentialCapture } from '@shared/types'
 import { UnlockGate } from '@/components/UnlockGate'
 import { Workspace } from '@/components/Workspace'
 import { SettingsDialog } from '@/components/dialogs/SettingsDialog'
@@ -15,6 +17,10 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [downloadsOpen, setDownloadsOpen] = useState(false)
   const [mode, setMode] = useState<AppMode>('library')
+  const [capturedLogin, setCapturedLogin] = useState<CredentialCapture | null>(null)
+
+  // ログインフォームの送信を検知したら保存を確認する。
+  useEffect(() => window.sbm.events.onCredentialCaptured(setCapturedLogin), [])
   const unlocked = phase === 'unlocked' && settings !== null
 
   return (
@@ -60,6 +66,12 @@ export default function App() {
       ) : null}
 
       <DownloadsDialog open={downloadsOpen} onClose={() => setDownloadsOpen(false)} />
+
+      <CredentialSaveDialog
+        capture={unlocked ? capturedLogin : null}
+        onClose={() => setCapturedLogin(null)}
+        onSaved={() => setCapturedLogin(null)}
+      />
     </Tooltip.Provider>
   )
 }

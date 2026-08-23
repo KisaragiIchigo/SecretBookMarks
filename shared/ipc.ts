@@ -37,6 +37,14 @@ export const IPC = {
   browserMediaList: 'browser:media-list',
   browserMediaClear: 'browser:media-clear',
   browserScanPage: 'browser:scan-page',
+  browserPageMeta: 'browser:page-meta',
+
+  credentialList: 'credential:list',
+  credentialForOrigin: 'credential:for-origin',
+  credentialSave: 'credential:save',
+  credentialDelete: 'credential:delete',
+  credentialReveal: 'credential:reveal',
+  credentialFill: 'credential:fill',
   browserNavigate: 'browser:navigate',
   browserClearData: 'browser:clear-data',
   adblockStatus: 'adblock:status',
@@ -77,4 +85,5 @@ export const IPC_EVENT = {
   browserOpenUrl: 'event:browser-open-url',
   browserCapturePage: 'event:browser-capture-page',
   browserNavigate: 'event:browser-navigate',
+  credentialCaptured: 'event:credential-captured',
 } as const

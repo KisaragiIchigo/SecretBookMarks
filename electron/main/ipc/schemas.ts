@@ -92,3 +92,18 @@ export const startDownloadSchema = z.object({
 export const downloadIdSchema = z.object({ id: idSchema })
 
 export const adblockToggleSchema = z.object({ enabled: z.boolean() })
+
+// ===== ログイン情報 =====
+
+export const credentialSaveSchema = z.object({
+  origin: httpUrlSchema,
+  username: z.string().max(256),
+  password: z.string().min(1).max(1024),
+})
+
+export const credentialIdSchema = z.object({ id: idSchema })
+export const originSchema = z.object({ origin: z.string().trim().max(2048) })
+export const credentialFillSchema = z.object({
+  contentsId: z.number().int().nonnegative(),
+  id: idSchema,
+})

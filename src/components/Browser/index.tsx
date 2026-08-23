@@ -5,6 +5,7 @@ import {
   BookmarkPlus,
   Film,
   Home,
+  KeyRound,
   Loader2,
   Plus,
   RotateCw,
@@ -23,7 +24,7 @@ import { WebviewHost } from './WebviewHost'
 export interface BrowserProps {
   visible: boolean
   homeUrl: string
-  onBookmarkPage: (url: string, title: string) => void
+  onBookmarkPage: (url: string, title: string, contentsId: number | null) => void
 }
 
 /** 入力欄の文字列を URL か検索語かに振り分ける。 */
@@ -43,6 +44,7 @@ export function Browser({ visible, homeUrl, onBookmarkPage }: BrowserProps) {
   const [panelOpen, setPanelOpen] = useState(false)
   const [ffmpegAvailable, setFfmpegAvailable] = useState(true)
   const [scanning, setScanning] = useState(false)
+  const [credentialCount, setCredentialCount] = useState(0)
 
   const candidates = mediaFor(active?.contentsId ?? null)
 
@@ -128,6 +130,27 @@ export function Browser({ visible, homeUrl, onBookmarkPage }: BrowserProps) {
       setScanning(false)
     }
   }, [active?.contentsId])
+
+  // 現在のサイトに保存済みのログイン情報があるかを見ておく。
+  useEffect(() => {
+    if (!active?.url) {
+      setCredentialCount(0)
+      return
+    }
+    void window.sbm.credentials
+      .forOrigin(active.url)
+      .then((list) => setCredentialCount(list.length))
+      .catch(() => setCredentialCount(0))
+  }, [active?.url])
+
+  /** 保存済みのログイン情報をページへ入力する。値は Main の中だけで扱われる。 */
+  const fillCredential = useCallback(async () => {
+    const contentsId = active?.contentsId
+    if (!active?.url || contentsId === undefined || contentsId === null) return
+    const list = await window.sbm.credentials.forOrigin(active.url)
+    if (list.length === 0) return
+    await window.sbm.credentials.fill(contentsId, list[0].id)
+  }, [active?.contentsId, active?.url])
 
   // パネルを開いた時点で一度自動で走らせる。
   useEffect(() => {
@@ -230,12 +253,21 @@ export function Browser({ visible, homeUrl, onBookmarkPage }: BrowserProps) {
           動画 {formatCount(candidates.length)}
         </button>
 
+        {credentialCount > 0 ? (
+          <IconButton
+            label="保存したログイン情報を入力"
+            icon={<KeyRound className="h-4 w-4" />}
+            tone="accent"
+            onClick={() => void fillCredential()}
+          />
+        ) : null}
+
         <IconButton
           label="このページをブックマーク"
           icon={<BookmarkPlus className="h-4 w-4" />}
           tone="accent"
           disabled={!active}
-          onClick={() => active && onBookmarkPage(active.url, active.title)}
+          onClick={() => active && onBookmarkPage(active.url, active.title, active.contentsId)}
         />
       </div>
 

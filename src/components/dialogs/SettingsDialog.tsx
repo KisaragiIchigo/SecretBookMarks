@@ -1,10 +1,11 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { Eraser, FolderOpen, RefreshCw, ShieldCheck } from 'lucide-react'
-import type { AdblockStatusView, AppSettings, FilterListInfo } from '@shared/types'
+import { Eraser, Eye, FolderOpen, KeyRound, RefreshCw, ShieldCheck, Trash2 } from 'lucide-react'
+import type { AdblockStatusView, AppSettings, CredentialSummary, FilterListInfo } from '@shared/types'
 import { Button } from '@/components/ui/Button'
 import { Field, Input } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
 import { Select } from '@/components/ui/Select'
+import { IconButton } from '@/components/ui/IconButton'
 import { SwitchRow } from '@/components/ui/Switch'
 import { useToast } from '@/components/ui/Toast'
 
@@ -42,6 +43,8 @@ export function SettingsDialog({ open, settings, vaultPath, onClose, onChange }:
   const [ffmpeg, setFfmpeg] = useState<{ available: boolean; path: string | null } | null>(null)
   const [adblock, setAdblock] = useState<AdblockStatusView | null>(null)
   const [lists, setLists] = useState<FilterListInfo[]>([])
+  const [credentials, setCredentials] = useState<CredentialSummary[]>([])
+  const [revealed, setRevealed] = useState<Record<string, string>>({})
   const [current, setCurrent] = useState('')
   const [next, setNext] = useState('')
   const [confirmation, setConfirmation] = useState('')
@@ -56,6 +59,8 @@ export function SettingsDialog({ open, settings, vaultPath, onClose, onChange }:
     void window.sbm.downloads.ffmpegStatus().then(setFfmpeg)
     void window.sbm.adblock.status().then(setAdblock)
     void window.sbm.adblock.lists().then(setLists)
+    void window.sbm.credentials.list().then(setCredentials)
+    setRevealed({})
   }, [open])
 
   const changePassword = async (event: FormEvent) => {
@@ -142,6 +147,62 @@ export function SettingsDialog({ open, settings, vaultPath, onClose, onChange }:
               className="w-full"
             />
           </Field>
+        </section>
+
+        <section>
+          <div className="flex items-center gap-2">
+            <KeyRound className="h-3.5 w-3.5 text-teal-300" />
+            <span className="label-caps flex-1">saved logins</span>
+            <span className="font-mono text-xs text-slate-400">{credentials.length}</span>
+          </div>
+
+          {credentials.length === 0 ? (
+            <p className="mt-2 text-xs text-slate-400">
+              保存されたログイン情報はありません。内蔵ブラウザでログインすると、保存するかを確認します。
+            </p>
+          ) : (
+            <ul className="mt-2 space-y-1.5">
+              {credentials.map((entry) => (
+                <li
+                  key={entry.id}
+                  className="flex items-center gap-2 rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-mono text-xs text-slate-300">{entry.origin}</p>
+                    <p className="truncate text-sm text-slate-200">{entry.username || '(利用者名なし)'}</p>
+                    {revealed[entry.id] ? (
+                      <p className="mt-1 break-all font-mono text-xs text-teal-300">{revealed[entry.id]}</p>
+                    ) : null}
+                  </div>
+                  <IconButton
+                    label="パスワードを表示"
+                    icon={<Eye className="h-3.5 w-3.5" />}
+                    onClick={() => {
+                      void window.sbm.credentials.reveal(entry.id).then((found) => {
+                        if (found) setRevealed((current) => ({ ...current, [entry.id]: found.password }))
+                      })
+                    }}
+                  />
+                  <IconButton
+                    label="削除"
+                    tone="danger"
+                    icon={<Trash2 className="h-3.5 w-3.5" />}
+                    onClick={() => {
+                      void window.sbm.credentials.remove(entry.id).then(() => {
+                        setCredentials((current) => current.filter((item) => item.id !== entry.id))
+                        toast.push({ title: 'ログイン情報を削除しました' })
+                      })
+                    }}
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <p className="mt-2 text-xs text-slate-400">
+            パスワードはマスターパスワードから導いた鍵で個別に暗号化され、ヴォールトの中でも
+            そのままの文字列では保持されません。表示を選んだときだけ復号します。
+          </p>
         </section>
 
         <section>

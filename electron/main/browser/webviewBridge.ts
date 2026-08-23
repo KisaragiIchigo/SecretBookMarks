@@ -106,7 +106,12 @@ function buildContextMenu(contents: WebContents, params: ContextMenuParams): Men
 
   template.push({
     label: 'このページをブックマークに追加(&B)',
-    click: () => emitToRenderer(IPC_EVENT.browserCapturePage, { url: pageUrl, title: contents.getTitle() }),
+    click: () =>
+      emitToRenderer(IPC_EVENT.browserCapturePage, {
+        url: pageUrl,
+        title: contents.getTitle(),
+        contentsId: contents.id,
+      }),
   })
   template.push({ type: 'separator' })
   template.push({
@@ -149,6 +154,17 @@ export function registerWebviewBridge(): void {
 
   ipcMain.on('sbm:nav-command', (_event, direction: 'back' | 'forward') => {
     if (direction === 'back' || direction === 'forward') dispatchNavigation(direction)
+  })
+
+  // ログインフォームの送信を検知したら、保存するかを画面で確認する。
+  // ここで受け取った値は保存を選ぶまでどこにも書かない。
+  ipcMain.on('sbm:credential-capture', (_event, payload: { origin?: string; username?: string; password?: string }) => {
+    if (!payload?.password || !payload.origin) return
+    emitToRenderer(IPC_EVENT.credentialCaptured, {
+      origin: payload.origin,
+      username: payload.username ?? '',
+      password: payload.password,
+    })
   })
 
   const window = getMainWindow()

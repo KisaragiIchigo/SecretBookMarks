@@ -39,6 +39,41 @@ export interface VaultModel {
   cookies: StoredCookie[]
   /** ダウンロード履歴（完了・失敗したものだけ。実行中は主記憶のみ） */
   downloads: DownloadTask[]
+  /** サイトのログイン情報。パスワードはさらに個別に暗号化して持つ */
+  credentials: StoredCredential[]
+}
+
+/**
+ * 保存されたログイン情報。
+ * password は平文では持たず、マスター鍵から導出した副鍵で暗号化した文字列。
+ */
+export interface StoredCredential {
+  id: string
+  /** https://example.com のような、スキームとホストまで */
+  origin: string
+  username: string
+  /** 暗号化済み。復号は Main プロセスの中だけで行う */
+  secret: string
+  createdAt: number
+  updatedAt: number
+  lastUsedAt: number | null
+}
+
+/** 画面へ渡す用。パスワードは含めない。 */
+export interface CredentialSummary {
+  id: string
+  origin: string
+  username: string
+  createdAt: number
+  updatedAt: number
+  lastUsedAt: number | null
+}
+
+/** ログイン画面で拾った入力内容 */
+export interface CredentialCapture {
+  origin: string
+  username: string
+  password: string
 }
 
 /** Electron の Cookie を復元できる最小限の形に落としたもの */
