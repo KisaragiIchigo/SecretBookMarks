@@ -1,33 +1,32 @@
 @echo off
-chcp 65001 >nul
 setlocal
 cd /d "%~dp0"
 
 set "ELECTRON_RUN_AS_NODE="
 
-title SecretBookMarks - exe ãƒ“ãƒ«ãƒ‰
+title SecretBookMarks - exe ƒrƒ‹ƒh
 
 where npm >nul 2>nul
 if errorlevel 1 goto :nonode
 
 if not exist "node_modules\" (
     echo.
-    echo  åˆå›žã‚»ãƒƒãƒˆã‚¢ãƒƒãƒ—ã‚’è¡Œã„ã¾ã™ã€‚å›žç·šçŠ¶æ³ã«ã‚ˆã£ã¦ã¯æ•°åˆ†ã‹ã‹ã‚Šã¾ã™ã€‚
+    echo  ‰‰ñƒZƒbƒgƒAƒbƒv‚ðs‚¢‚Ü‚·B‰ñüó‹µ‚É‚æ‚Á‚Ä‚Í”•ª‚©‚©‚è‚Ü‚·B
     echo.
     call npm install --no-audit --no-fund
     if errorlevel 1 goto :failed
 )
 
 echo.
-echo  ã‚¤ãƒ³ã‚¹ãƒˆãƒ¼ãƒ©ãƒ¼ã¨ãƒãƒ¼ã‚¿ãƒ–ãƒ«ç‰ˆã‚’ä½œæˆã—ã¾ã™ã€‚
-echo  åˆå›žã¯ electron-builder ãŒæ•°ç™¾ MB ã®éƒ¨å“ã‚’å–å¾—ã™ã‚‹ãŸã‚ã€æ™‚é–“ãŒã‹ã‹ã‚Šã¾ã™ã€‚
+echo  ƒCƒ“ƒXƒg[ƒ‰[‚Æƒ|[ƒ^ƒuƒ‹”Å‚ðì¬‚µ‚Ü‚·B
+echo  ‰‰ñ‚Í electron-builder ‚ª”•S MB ‚Ì•”•i‚ðŽæ“¾‚·‚é‚½‚ßAŽžŠÔ‚ª‚©‚©‚è‚Ü‚·B
 echo.
 
 call npm run dist
 if errorlevel 1 goto :failed
 
 echo.
-echo  å®Œæˆã—ã¾ã—ãŸã€‚release ãƒ•ã‚©ãƒ«ãƒ€ãƒ¼ã‚’é–‹ãã¾ã™ã€‚
+echo  Š®¬‚µ‚Ü‚µ‚½Brelease ƒtƒHƒ‹ƒ_[‚ðŠJ‚«‚Ü‚·B
 echo.
 start "" "%~dp0release"
 pause
@@ -35,15 +34,15 @@ exit /b 0
 
 :nonode
 echo.
-echo  Node.js ãŒè¦‹ã¤ã‹ã‚Šã¾ã›ã‚“ã§ã—ãŸã€‚
-echo  https://nodejs.org/ ã‹ã‚‰ LTS ç‰ˆã‚’ã‚¤ãƒ³ã‚¹ãƒˆãƒ¼ãƒ«ã—ã¦ã‹ã‚‰ã€ã‚‚ã†ä¸€åº¦å®Ÿè¡Œã—ã¦ãã ã•ã„ã€‚
+echo  Node.js ‚ªŒ©‚Â‚©‚è‚Ü‚¹‚ñ‚Å‚µ‚½B
+echo  https://nodejs.org/ ‚©‚ç LTS ”Å‚ðƒCƒ“ƒXƒg[ƒ‹‚µ‚Ä‚©‚çA‚à‚¤ˆê“xŽÀs‚µ‚Ä‚­‚¾‚³‚¢B
 echo.
 pause
 exit /b 1
 
 :failed
 echo.
-echo  ãƒ“ãƒ«ãƒ‰ã«å¤±æ•—ã—ã¾ã—ãŸã€‚ä¸Šã«è¡¨ç¤ºã•ã‚ŒãŸãƒ¡ãƒƒã‚»ãƒ¼ã‚¸ã‚’ç¢ºèªã—ã¦ãã ã•ã„ã€‚
+echo  ƒrƒ‹ƒh‚ÉŽ¸”s‚µ‚Ü‚µ‚½Bã‚É•\Ž¦‚³‚ê‚½ƒƒbƒZ[ƒW‚ðŠm”F‚µ‚Ä‚­‚¾‚³‚¢B
 echo.
 pause
 exit /b 1

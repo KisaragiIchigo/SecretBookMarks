@@ -1,9 +1,8 @@
 @echo off
-chcp 65001 >nul
 setlocal
 cd /d "%~dp0"
 
-rem Electron ã‚’ Node ã¨ã—ã¦èµ·å‹•ã•ã›ã‚‹ç’°å¢ƒå¤‰æ•°ãŒæ®‹ã£ã¦ã„ã‚‹ã¨èµ·å‹•ã«å¤±æ•—ã™ã‚‹ãŸã‚æ‰“ã¡æ¶ˆã™
+rem Electron ‚ð Node ‚Æ‚µ‚Ä‹N“®‚³‚¹‚éŠÂ‹«•Ï”‚ªŽc‚Á‚Ä‚¢‚é‚Æ‹N“®‚ÉŽ¸”s‚·‚é‚½‚ß‘Å‚¿Á‚·
 set "ELECTRON_RUN_AS_NODE="
 
 title SecretBookMarks
@@ -13,7 +12,7 @@ if errorlevel 1 goto :nonode
 
 if not exist "node_modules\" (
     echo.
-    echo  åˆå›žã‚»ãƒƒãƒˆã‚¢ãƒƒãƒ—ã‚’è¡Œã„ã¾ã™ã€‚å›žç·šçŠ¶æ³ã«ã‚ˆã£ã¦ã¯æ•°åˆ†ã‹ã‹ã‚Šã¾ã™ã€‚
+    echo  ‰‰ñƒZƒbƒgƒAƒbƒv‚ðs‚¢‚Ü‚·B‰ñüó‹µ‚É‚æ‚Á‚Ä‚Í”•ª‚©‚©‚è‚Ü‚·B
     echo.
     call npm install --no-audit --no-fund
     if errorlevel 1 goto :failed
@@ -21,7 +20,7 @@ if not exist "node_modules\" (
 
 if not exist "dist\main\index.cjs" (
     echo.
-    echo  ã‚¢ãƒ—ãƒªã‚’ãƒ“ãƒ«ãƒ‰ã—ã¦ã„ã¾ã™ã€‚ã—ã°ã‚‰ããŠå¾…ã¡ãã ã•ã„ã€‚
+    echo  ƒAƒvƒŠ‚ðƒrƒ‹ƒh‚µ‚Ä‚¢‚Ü‚·B‚µ‚Î‚ç‚­‚¨‘Ò‚¿‚­‚¾‚³‚¢B
     echo.
     call npm run build
     if errorlevel 1 goto :failed
@@ -32,15 +31,15 @@ exit /b 0
 
 :nonode
 echo.
-echo  Node.js ãŒè¦‹ã¤ã‹ã‚Šã¾ã›ã‚“ã§ã—ãŸã€‚
-echo  https://nodejs.org/ ã‹ã‚‰ LTS ç‰ˆã‚’ã‚¤ãƒ³ã‚¹ãƒˆãƒ¼ãƒ«ã—ã¦ã‹ã‚‰ã€ã‚‚ã†ä¸€åº¦å®Ÿè¡Œã—ã¦ãã ã•ã„ã€‚
+echo  Node.js ‚ªŒ©‚Â‚©‚è‚Ü‚¹‚ñ‚Å‚µ‚½B
+echo  https://nodejs.org/ ‚©‚ç LTS ”Å‚ðƒCƒ“ƒXƒg[ƒ‹‚µ‚Ä‚©‚çA‚à‚¤ˆê“xŽÀs‚µ‚Ä‚­‚¾‚³‚¢B
 echo.
 pause
 exit /b 1
 
 :failed
 echo.
-echo  å‡¦ç†ã«å¤±æ•—ã—ã¾ã—ãŸã€‚ä¸Šã«è¡¨ç¤ºã•ã‚ŒãŸãƒ¡ãƒƒã‚»ãƒ¼ã‚¸ã‚’ç¢ºèªã—ã¦ãã ã•ã„ã€‚
+echo  ˆ—‚ÉŽ¸”s‚µ‚Ü‚µ‚½Bã‚É•\Ž¦‚³‚ê‚½ƒƒbƒZ[ƒW‚ðŠm”F‚µ‚Ä‚­‚¾‚³‚¢B
 echo.
 pause
 exit /b 1
