@@ -4,6 +4,29 @@
   "entries": [
     {
       "date": "2026-08-23",
+      "summary": "保存名からサイト名を除き、ID を動画ファイル側から取るようにした",
+      "purpose": "実際の SpankBang のページで「タイトル エロ動画 - SpankBang_7gf69.mp4」になってしまう問題への対応。",
+      "targets": [
+        "electron/main/browser/pageTitle.ts（新規）",
+        "electron/main/download/manager.ts",
+        "electron/main/browser/webviewBridge.ts / ipc/browserHandlers.ts / ipc/schemas.ts",
+        "electron/preload/index.ts / src/components/Browser/index.tsx"
+      ],
+      "changes": [
+        "タイトルの決定を pageTitle.ts へ切り出した。document.title にはサイト名や煽り文が付くため、見出し（h1）が document.title の先頭に含まれていればそれを採用し、次に og:title、最後に document.title からサイト名を落としたものを使う。",
+        "サイト名の除去はホスト名の second level domain と突き合わせて行う。区切り（- | : 等）で分割し、末尾がサイト名を含む区画なら落とす。",
+        "ID を動画ファイル側の名前から取るよう優先順を逆転した（例: 12523473-1080p）。クエリは無視する。index.m3u8 のような汎用名のときだけページ URL 側の ID を使う。",
+        "タイトルと ID の区切りをアンダースコアから半角スペースへ変更した。",
+        "拡張子の決定から .m3u8 / .mpd を除外した。保存されるのは結合後の mp4 のため、名前が .m3u8.mp4 になるのを防ぐ。",
+        "タイトルの解決は Main 側で行い、右クリック・検出一覧のどちらの経路でも同じ結果になるようにした。"
+      ],
+      "impact": "実例では「小さくて華奢な日本の若い女性 12523473-1080p.mp4」になる。",
+      "concerns": [
+        "見出しの選択は「h1 が document.title の先頭に含まれる」ことを手がかりにした経験則。当てはまらないサイトでは og:title か、サイト名を落とした document.title になる。"
+      ]
+    },
+    {
+      "date": "2026-08-23",
       "summary": "保存名を「タイトル_ID.拡張子」に変更し、戻る/進むを Main 側の履歴操作へ一本化した",
       "purpose": "同じタイトルの動画を区別できるようにすること、および前回の修正でも直らなかった戻る/進むへの対応。",
       "targets": [

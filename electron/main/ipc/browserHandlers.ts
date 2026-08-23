@@ -5,6 +5,7 @@ import { FILTER_LISTS, adblockStatus, setAdblockEnabled, updateFilters } from '.
 import { clearBrowserData } from '../browser/session'
 import { clearMediaFor, mediaCandidates } from '../browser/mediaSniffer'
 import { scanPageMedia } from '../browser/domScanner'
+import { resolvePageTitle } from '../browser/pageTitle'
 import { downloads } from '../download/manager'
 import { ffmpegStatus } from '../download/ffmpeg'
 import { saveSettings } from '../settings'
@@ -67,11 +68,13 @@ export function registerBrowserHandlers(): void {
     { requireUnlock: false },
   )
 
-  register(
-    IPC.downloadStart,
-    startDownloadSchema,
-    (input): Promise<DownloadTask | null> => downloads.start(input),
-  )
+  register(IPC.downloadStart, startDownloadSchema, async (input): Promise<DownloadTask | null> => {
+    // タイトルは Main 側で解決する。document.title にはサイト名が混ざるため、
+    // 見出しや og:title を見て動画そのものの名前を選ぶ。
+    const pageTitle =
+      input.contentsId === undefined ? input.pageTitle : await resolvePageTitle(input.contentsId)
+    return downloads.start({ ...input, pageTitle: pageTitle || input.pageTitle })
+  })
 
   register(IPC.downloadCancel, downloadIdSchema, ({ id }) => {
     downloads.cancel(id)

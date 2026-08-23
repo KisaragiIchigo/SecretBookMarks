@@ -95,6 +95,7 @@ const api = {
       pageUrl: string
       fileName?: string
       pageTitle?: string
+      contentsId?: number
       saveAs?: boolean
     }) => call<DownloadTask | null>(IPC.downloadStart, input),
     cancel: (id: string) => call<boolean>(IPC.downloadCancel, { id }),

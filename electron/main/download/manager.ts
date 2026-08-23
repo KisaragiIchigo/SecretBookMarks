@@ -50,13 +50,16 @@ function uniquePath(dir: string, fileName: string): string {
   return candidate
 }
 
+// マニフェストの拡張子。保存されるのは結合後の mp4 なので、名前には使わない。
+const MANIFEST_EXT = /^\.(m3u8|mpd)$/i
+
 /** URL の末尾から拡張子だけを取り出す。 */
 function extensionFromUrl(url: string, fallbackExt: string): string {
   try {
     const path = new URL(url).pathname
     const last = decodeURIComponent(path.split('/').filter(Boolean).pop() ?? '')
     const ext = extname(last)
-    if (ext && ext.length <= 5) return ext
+    if (ext && ext.length <= 5 && !MANIFEST_EXT.test(ext)) return ext
   } catch {
     // URL として壊れていても、下の既定へ落ちる。
   }
@@ -65,29 +68,38 @@ function extensionFromUrl(url: string, fallbackExt: string): string {
 
 // /video/ や /watch/ のような、ID ではない区切りの語
 const PATH_NOISE = /^(video|videos|watch|embed|player|play|movie|movies|media|file|files|get_file|stream|v|e|w)$/i
+// index.m3u8 のように、どの動画でも同じ名前になるもの
+const GENERIC_BASENAME = /^(index|master|playlist|manifest|chunklist|out|output|video|media|stream|file|default)([-_.]?\d+)?$/i
 
-/**
- * 動画を特定する ID を URL から取り出す。
- * ページ URL 側にサイト内での ID が入っていることが多いので、そちらを優先する。
- * 見つからなければメディア URL の末尾（拡張子を除いた部分）で代用する。
- */
-function extractId(pageUrl: string, mediaUrl: string): string {
-  for (const source of [pageUrl, mediaUrl]) {
-    if (!source) continue
-    let parsed: URL
-    try {
-      parsed = new URL(source)
-    } catch {
-      continue
-    }
+/** URL の末尾（クエリを除いた部分）から拡張子を落とした名前を取り出す。 */
+function basenameOf(url: string): string {
+  try {
+    const path = new URL(url).pathname
+    const last = decodeURIComponent(path.split('/').filter(Boolean).pop() ?? '')
+    return last.slice(0, last.length - extname(last).length)
+  } catch {
+    return ''
+  }
+}
 
-    // ?v=xxxx / ?id=xxxx の形
-    for (const key of ['v', 'id', 'vid', 'video_id']) {
-      const value = parsed.searchParams.get(key)
-      if (value && /^[\w-]{3,32}$/.test(value)) return value
-    }
+/** ページ URL からサイト内の ID らしき区画を探す。 */
+function idFromPageUrl(pageUrl: string): string {
+  let parsed: URL
+  try {
+    parsed = new URL(pageUrl)
+  } catch {
+    return ''
+  }
 
-    const segments = parsed.pathname.split('/').filter(Boolean).map((part) => {
+  for (const key of ['v', 'id', 'vid', 'video_id']) {
+    const value = parsed.searchParams.get(key)
+    if (value && /^[\w-]{3,32}$/.test(value)) return value
+  }
+
+  const segments = parsed.pathname
+    .split('/')
+    .filter(Boolean)
+    .map((part) => {
       try {
         return decodeURIComponent(part)
       } catch {
@@ -95,22 +107,30 @@ function extractId(pageUrl: string, mediaUrl: string): string {
       }
     })
 
-    // 数字だけの区画は、ほぼサイト内の ID
-    const numeric = segments.find((part) => /^\d{2,}$/.test(part))
-    if (numeric) return numeric
+  const numeric = segments.find((part) => /^\d{2,}$/.test(part))
+  if (numeric) return numeric
 
-    // それ以外は、区切り語でない英数字の区画を後ろから探す
-    for (let i = segments.length - 1; i >= 0; i -= 1) {
-      const bare = segments[i].replace(extname(segments[i]), '')
-      if (!bare || PATH_NOISE.test(bare)) continue
-      if (/^[\w-]{3,32}$/.test(bare)) return bare
-    }
+  for (let i = segments.length - 1; i >= 0; i -= 1) {
+    const bare = segments[i].slice(0, segments[i].length - extname(segments[i]).length)
+    if (!bare || PATH_NOISE.test(bare)) continue
+    if (/^[\w-]{3,32}$/.test(bare)) return bare
   }
   return ''
 }
 
 /**
- * 保存時の既定のファイル名。「タイトル_ID.拡張子」の順で組み立てる。
+ * 動画を特定する ID。
+ * 実ファイルの名前（例: 12523473-1080p）が最も内容に近いのでそれを優先し、
+ * index.m3u8 のように意味を持たない場合だけページ URL 側の ID を使う。
+ */
+function extractId(pageUrl: string, mediaUrl: string): string {
+  const base = basenameOf(mediaUrl)
+  if (base && base.length <= 64 && !GENERIC_BASENAME.test(base) && !PATH_NOISE.test(base)) return base
+  return idFromPageUrl(pageUrl)
+}
+
+/**
+ * 保存時の既定のファイル名。「タイトル ID.拡張子」の順で組み立てる。
  * 動画サイトの URL は内容を表さないことが多いためタイトルを主に据えつつ、
  * 同じタイトルの動画を区別できるよう ID を添える。
  */
@@ -123,7 +143,7 @@ function guessFileName(url: string, fallbackExt: string, pageTitle?: string, pag
   // タイトルに既に ID が含まれている場合は重ねない
   const needsId = Boolean(id) && !(hasTitle && title.toLowerCase().includes(id.toLowerCase()))
 
-  if (hasTitle) return `${title}${needsId ? `_${id}` : ''}${ext}`
+  if (hasTitle) return `${title}${needsId ? ` ${id}` : ''}${ext}`
   if (id) return `${id}${ext}`
 
   const stamp = new Date().toISOString().slice(0, 19).replace(/[:T-]/g, '')

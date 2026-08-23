@@ -122,6 +122,7 @@ export function Browser({ visible, homeUrl, onBookmarkPage }: BrowserProps) {
       kind: candidate.kind,
       pageUrl: active?.url ?? '',
       pageTitle: active?.title ?? '',
+      contentsId: active?.contentsId ?? undefined,
       saveAs,
     })
   }
