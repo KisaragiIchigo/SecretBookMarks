@@ -1,7 +1,15 @@
 import { dialog, webContents } from 'electron'
 import { IPC } from '@shared/ipc'
 import type { AdblockStatusView, AppSettings, DownloadTask, FilterListInfo, MediaCandidate } from '@shared/types'
-import { FILTER_LISTS, adblockStatus, setAdblockEnabled, updateFilters } from '../browser/adblock'
+import {
+  FILTER_LISTS,
+  adblockStatus,
+  normalizeAllowlistEntry,
+  refreshAllowlist,
+  setAdblockEnabled,
+  setUserBlocklist,
+  updateFilters,
+} from '../browser/adblock'
 import { clearBrowserData } from '../browser/session'
 import { clearMediaFor, mediaCandidates } from '../browser/mediaSniffer'
 import { scanPageMedia } from '../browser/domScanner'
@@ -12,7 +20,15 @@ import { ffmpegStatus } from '../download/ffmpeg'
 import { loadSettings, saveSettings } from '../settings'
 import { getMainWindow } from '../window'
 import { register, registerVoid } from './register'
-import { adblockToggleSchema, contentsIdSchema, downloadIdSchema, navigateSchema, startDownloadSchema } from './schemas'
+import {
+  adblockToggleSchema,
+  allowlistSchema,
+  allowlistToggleSchema,
+  contentsIdSchema,
+  downloadIdSchema,
+  navigateSchema,
+  startDownloadSchema,
+} from './schemas'
 
 export function registerBrowserHandlers(): void {
   register(IPC.browserMediaList, contentsIdSchema, ({ contentsId }): MediaCandidate[] =>
@@ -70,6 +86,42 @@ export function registerBrowserHandlers(): void {
   registerVoid<AdblockStatusView>(IPC.adblockStatus, () => adblockStatus(), { requireUnlock: false })
   registerVoid<FilterListInfo[]>(IPC.adblockLists, () => FILTER_LISTS, { requireUnlock: false })
   registerVoid<AdblockStatusView>(IPC.adblockUpdate, () => updateFilters(), { requireUnlock: false })
+
+  register(
+    IPC.adblockAllowlist,
+    allowlistSchema,
+    ({ entries }): string[] => {
+      const cleaned = [...new Set(entries.map(normalizeAllowlistEntry).filter(Boolean))]
+      saveSettings({ adBlockAllowlist: cleaned })
+      refreshAllowlist()
+      return cleaned
+    },
+    { requireUnlock: false },
+  )
+
+  register(
+    IPC.adblockUserBlocklist,
+    allowlistSchema,
+    ({ entries }): string[] => setUserBlocklist(entries),
+    { requireUnlock: false },
+  )
+
+  /** 表示中のサイトを除外リストに出し入れする。 */
+  register(
+    IPC.adblockToggleSite,
+    allowlistToggleSchema,
+    ({ site }): { allowlist: string[]; allowed: boolean } => {
+      const host = normalizeAllowlistEntry(site)
+      if (!host) return { allowlist: loadSettings().adBlockAllowlist, allowed: false }
+      const current = loadSettings().adBlockAllowlist
+      const allowed = current.includes(host)
+      const next = allowed ? current.filter((entry) => entry !== host) : [...current, host]
+      saveSettings({ adBlockAllowlist: next })
+      refreshAllowlist()
+      return { allowlist: next, allowed: !allowed }
+    },
+    { requireUnlock: false },
+  )
   register(
     IPC.adblockSetEnabled,
     adblockToggleSchema,

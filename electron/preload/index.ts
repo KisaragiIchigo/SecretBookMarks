@@ -93,6 +93,10 @@ const api = {
     lists: () => call<FilterListInfo[]>(IPC.adblockLists),
     update: () => call<AdblockStatusView>(IPC.adblockUpdate),
     setEnabled: (enabled: boolean) => call<AdblockStatusView>(IPC.adblockSetEnabled, { enabled }),
+    setAllowlist: (entries: string[]) => call<string[]>(IPC.adblockAllowlist, { entries }),
+    setUserBlocklist: (entries: string[]) => call<string[]>(IPC.adblockUserBlocklist, { entries }),
+    toggleSite: (site: string) =>
+      call<{ allowlist: string[]; allowed: boolean }>(IPC.adblockToggleSite, { site }),
   },
   downloads: {
     start: (input: {

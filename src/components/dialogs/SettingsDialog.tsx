@@ -1,5 +1,18 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { Eraser, Eye, FolderOpen, History, KeyRound, RefreshCw, RotateCcw, ShieldCheck, Trash2 } from 'lucide-react'
+import {
+  Eraser,
+  Eye,
+  FolderOpen,
+  History,
+  KeyRound,
+  Plus,
+  RefreshCw,
+  RotateCcw,
+  ShieldCheck,
+  ShieldOff,
+  Ban,
+  Trash2,
+} from 'lucide-react'
 import type {
   AdblockStatusView,
   AppSettings,
@@ -53,6 +66,8 @@ export function SettingsDialog({ open, settings, vaultPath, onClose, onChange }:
   const [credentials, setCredentials] = useState<CredentialSummary[]>([])
   const [revealed, setRevealed] = useState<Record<string, string>>({})
   const [historyOf, setHistoryOf] = useState<{ id: string; entries: CredentialHistoryView[] } | null>(null)
+  const [allowInput, setAllowInput] = useState('')
+  const [blockInput, setBlockInput] = useState('')
   const [current, setCurrent] = useState('')
   const [next, setNext] = useState('')
   const [confirmation, setConfirmation] = useState('')
@@ -348,7 +363,141 @@ export function SettingsDialog({ open, settings, vaultPath, onClose, onChange }:
             ))}
           </ul>
 
-          <div className="mt-2 flex items-center justify-between gap-3">
+          <div className="mt-3">
+            <div className="flex items-center gap-2">
+              <ShieldOff className="h-3.5 w-3.5 text-amber-300" />
+              <span className="label-caps flex-1">除外するサイト</span>
+              <span className="font-mono text-xs text-slate-400">{settings.adBlockAllowlist.length}</span>
+            </div>
+            <p className="mt-1.5 text-xs text-slate-400">
+              ここに入れたサイトでは広告ブロックを適用しません。ログインが通らない場合などに追加してください。
+              ブラウザのツールバーにある盾のボタンからも切り替えられます。
+            </p>
+
+            <form
+              className="mt-2 flex gap-2"
+              onSubmit={(event) => {
+                event.preventDefault()
+                const value = allowInput.trim()
+                if (!value) return
+                void window.sbm.adblock
+                  .setAllowlist([...settings.adBlockAllowlist, value])
+                  .then((next) => {
+                    void onChange({ adBlockAllowlist: next })
+                    setAllowInput('')
+                    void window.sbm.adblock.status().then(setAdblock)
+                  })
+              }}
+            >
+              <Input
+                value={allowInput}
+                onChange={(event) => setAllowInput(event.target.value)}
+                placeholder="example.com または https://example.com/..."
+                spellCheck={false}
+                className="font-mono"
+              />
+              <Button type="submit" size="md" icon={<Plus className="h-3.5 w-3.5" />} className="shrink-0">
+                追加
+              </Button>
+            </form>
+
+            {settings.adBlockAllowlist.length > 0 ? (
+              <ul className="mt-2 flex flex-wrap gap-1.5">
+                {settings.adBlockAllowlist.map((host) => (
+                  <li
+                    key={host}
+                    className="inline-flex items-center gap-1 rounded-md border border-amber-500/20 bg-amber-500/10 py-1 pl-2 pr-1 text-xs text-amber-300"
+                  >
+                    <span className="font-mono">{host}</span>
+                    <button
+                      type="button"
+                      aria-label={`${host} を除外から外す`}
+                      className="text-amber-400/70 transition-colors hover:text-rose-300"
+                      onClick={() => {
+                        void window.sbm.adblock
+                          .setAllowlist(settings.adBlockAllowlist.filter((entry) => entry !== host))
+                          .then((next) => {
+                            void onChange({ adBlockAllowlist: next })
+                            void window.sbm.adblock.status().then(setAdblock)
+                          })
+                      }}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+
+          <div className="mt-3">
+            <div className="flex items-center gap-2">
+              <Ban className="h-3.5 w-3.5 text-rose-300" />
+              <span className="label-caps flex-1">常にブロックするドメイン</span>
+              <span className="font-mono text-xs text-slate-400">{settings.adBlockUserBlocklist.length}</span>
+            </div>
+            <p className="mt-1.5 text-xs text-slate-400">
+              フィルターに載っていない配信元を自分で止められます。ブラウザで広告を右クリックし、
+              「このドメインをブロック」からも追加できます。除外サイトより優先されます。
+            </p>
+
+            <form
+              className="mt-2 flex gap-2"
+              onSubmit={(event) => {
+                event.preventDefault()
+                const value = blockInput.trim()
+                if (!value) return
+                void window.sbm.adblock
+                  .setUserBlocklist([...settings.adBlockUserBlocklist, value])
+                  .then((next) => {
+                    void onChange({ adBlockUserBlocklist: next })
+                    setBlockInput('')
+                    void window.sbm.adblock.status().then(setAdblock)
+                  })
+              }}
+            >
+              <Input
+                value={blockInput}
+                onChange={(event) => setBlockInput(event.target.value)}
+                placeholder="ads.example.com"
+                spellCheck={false}
+                className="font-mono"
+              />
+              <Button type="submit" size="md" icon={<Plus className="h-3.5 w-3.5" />} className="shrink-0">
+                追加
+              </Button>
+            </form>
+
+            {settings.adBlockUserBlocklist.length > 0 ? (
+              <ul className="mt-2 flex flex-wrap gap-1.5">
+                {settings.adBlockUserBlocklist.map((host) => (
+                  <li
+                    key={host}
+                    className="inline-flex items-center gap-1 rounded-md border border-rose-500/20 bg-rose-500/10 py-1 pl-2 pr-1 text-xs text-rose-300"
+                  >
+                    <span className="font-mono">{host}</span>
+                    <button
+                      type="button"
+                      aria-label={`${host} のブロックを解除`}
+                      className="text-rose-400/70 transition-colors hover:text-slate-200"
+                      onClick={() => {
+                        void window.sbm.adblock
+                          .setUserBlocklist(settings.adBlockUserBlocklist.filter((entry) => entry !== host))
+                          .then((next) => {
+                            void onChange({ adBlockUserBlocklist: next })
+                            void window.sbm.adblock.status().then(setAdblock)
+                          })
+                      }}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+
+          <div className="mt-3 flex items-center justify-between gap-3">
             <p className="text-xs text-slate-400">
               {adblock?.updatedAt
                 ? `最終更新: ${new Date(adblock.updatedAt).toLocaleString('ja-JP')}`

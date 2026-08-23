@@ -7,6 +7,8 @@ import {
   Home,
   KeyRound,
   RotateCw,
+  Shield,
+  ShieldOff,
   X,
 } from 'lucide-react'
 import type { MediaCandidate } from '@shared/types'
@@ -58,6 +60,7 @@ export function Browser({ visible, homeUrl, onBookmarkPage }: BrowserProps) {
   const [ffmpegAvailable, setFfmpegAvailable] = useState(true)
   const [scanning, setScanning] = useState(false)
   const [credentialCount, setCredentialCount] = useState(0)
+  const [adblockAllowed, setAdblockAllowed] = useState(false)
 
   const candidates = mediaFor(active?.contentsId ?? null)
 
@@ -159,6 +162,34 @@ export function Browser({ visible, homeUrl, onBookmarkPage }: BrowserProps) {
       .catch(() => setCredentialCount(0))
   }, [active?.url])
 
+  // 表示中のサイトが除外リストに入っているかを見ておく。
+  useEffect(() => {
+    if (!active?.url) {
+      setAdblockAllowed(false)
+      return
+    }
+    void window.sbm.settings
+      .get()
+      .then((settings) => {
+        try {
+          const host = new URL(active.url).hostname.toLowerCase()
+          setAdblockAllowed(settings.adBlockAllowlist.includes(host))
+        } catch {
+          setAdblockAllowed(false)
+        }
+      })
+      .catch(() => setAdblockAllowed(false))
+  }, [active?.url])
+
+  /** 表示中のサイトを広告ブロックの対象から出し入れする。 */
+  const toggleAdblockForSite = useCallback(async () => {
+    if (!active?.url) return
+    const result = await window.sbm.adblock.toggleSite(active.url)
+    setAdblockAllowed(result.allowed)
+    // ルールの反映には再読み込みが要る
+    navigateHistory('reload')
+  }, [active?.url])
+
   /** 保存済みのログイン情報をページへ入力する。値は Main の中だけで扱われる。 */
   const fillCredential = useCallback(async () => {
     const contentsId = active?.contentsId
@@ -247,6 +278,18 @@ export function Browser({ visible, homeUrl, onBookmarkPage }: BrowserProps) {
           <Film className="h-3.5 w-3.5" />
           動画 {formatCount(candidates.length)}
         </button>
+
+        <IconButton
+          label={
+            adblockAllowed
+              ? 'このサイトで広告ブロックを有効に戻す'
+              : 'このサイトだけ広告ブロックを無効にする（ログインできない場合に）'
+          }
+          icon={adblockAllowed ? <ShieldOff className="h-4 w-4" /> : <Shield className="h-4 w-4" />}
+          tone={adblockAllowed ? 'danger' : 'default'}
+          disabled={!active}
+          onClick={() => void toggleAdblockForSite()}
+        />
 
         {credentialCount > 0 ? (
           <IconButton

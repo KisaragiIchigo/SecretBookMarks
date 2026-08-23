@@ -22,6 +22,10 @@ const settingsSchema = z.object({
   downloadDir: z.string().max(4096).nullable().default(null),
   ffmpegPath: z.string().max(4096).nullable().default(null),
   adBlockEnabled: z.boolean().default(true),
+  /** 広告ブロックを適用しないサイト（ホスト名） */
+  adBlockAllowlist: z.array(z.string().trim().max(253)).max(500).default([]),
+  /** 常にブロックするドメイン（自分で追加した分） */
+  adBlockUserBlocklist: z.array(z.string().trim().max(253)).max(2000).default([]),
   /** 「名前を付けて保存」で最後に使ったフォルダー */
   lastSaveDir: z.string().max(4096).nullable().default(null),
   minimizeToTray: z.boolean().default(false),

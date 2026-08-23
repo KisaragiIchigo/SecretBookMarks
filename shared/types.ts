@@ -144,6 +144,10 @@ export interface AppSettings {
   /** null なら同梱の ffmpeg を使う */
   ffmpegPath: string | null
   adBlockEnabled: boolean
+  /** 広告ブロックを適用しないサイト（ホスト名） */
+  adBlockAllowlist: string[]
+  /** 常にブロックするドメイン（自分で追加した分） */
+  adBlockUserBlocklist: string[]
   /** 「名前を付けて保存」で最後に使ったフォルダー */
   lastSaveDir: string | null
   /** 最小化したときにタスクトレイへ入れる（閉じるボタンは常に終了する） */
@@ -267,6 +271,10 @@ export interface AdblockStatusView {
   updating: boolean
   /** 要素の非表示（cosmetic filtering）が使えているか */
   cosmetics: boolean
+  /** 除外しているサイトの数 */
+  allowlistCount: number
+  /** 自分で追加したブロック対象の数 */
+  userBlockCount: number
 }
 
 export interface FilterListInfo {

@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { IPC_EVENT } from '@shared/ipc'
 import { downloads } from '../download/manager'
 import { emitToRenderer, getMainWindow } from '../window'
+import { addUserBlock } from './adblock'
 import { clearMediaFor, mediaCandidates } from './mediaSniffer'
 import { resolvePageTitle } from './pageTitle'
 import { browserSession } from './session'
@@ -102,6 +103,27 @@ function buildContextMenu(contents: WebContents, params: ContextMenuParams): Men
         }),
     })
     template.push({ type: 'separator' })
+  }
+
+  // 目についた広告や不要な配信元を、その場でブロック対象へ加えられるようにする。
+  const blockTarget = params.srcURL || params.linkURL
+  if (blockTarget && /^https?:\/\//i.test(blockTarget)) {
+    let blockHost = ''
+    try {
+      blockHost = new URL(blockTarget).hostname
+    } catch {
+      blockHost = ''
+    }
+    if (blockHost) {
+      template.push({
+        label: `このドメインをブロック（${blockHost}）`,
+        click: () => {
+          addUserBlock(blockHost)
+          contents.reload()
+        },
+      })
+      template.push({ type: 'separator' })
+    }
   }
 
   if (params.linkURL) {

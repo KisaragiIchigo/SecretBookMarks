@@ -55,6 +55,9 @@ export const IPC = {
   adblockSetEnabled: 'adblock:set-enabled',
   adblockUpdate: 'adblock:update',
   adblockLists: 'adblock:lists',
+  adblockAllowlist: 'adblock:allowlist',
+  adblockToggleSite: 'adblock:toggle-site',
+  adblockUserBlocklist: 'adblock:user-blocklist',
 
   downloadStart: 'download:start',
   downloadCancel: 'download:cancel',

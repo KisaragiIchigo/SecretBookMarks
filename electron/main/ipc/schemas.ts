@@ -109,3 +109,6 @@ export const credentialFillSchema = z.object({
   contentsId: z.number().int().nonnegative(),
   id: idSchema,
 })
+
+export const allowlistSchema = z.object({ entries: z.array(z.string().trim().max(253)).max(500) })
+export const allowlistToggleSchema = z.object({ site: z.string().trim().min(1).max(2048) })
