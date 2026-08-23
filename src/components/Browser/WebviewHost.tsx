@@ -81,12 +81,21 @@ export function WebviewHost({ tabId, initialUrl, active, onPatch, onRegister }: 
   }, [onPatch, tabId])
 
   return (
-    <webview
-      ref={attachRef}
-      src={initialUrl}
-      partition="sbm-browser"
-      allowpopups={true}
-      className={cn('absolute inset-0 h-full w-full bg-white', active ? 'flex' : 'hidden')}
-    />
+    // display:none にすると webview のゲストが切り離されて操作できなくなるため、
+    // 非アクティブなタブは可視性と重なり順だけで隠す。
+    <div
+      className={cn(
+        'absolute inset-0 h-full w-full',
+        active ? 'visible z-10' : 'invisible -z-10 pointer-events-none',
+      )}
+    >
+      <webview
+        ref={attachRef}
+        src={initialUrl}
+        partition="sbm-browser"
+        allowpopups={true}
+        className="h-full w-full border-none bg-white"
+      />
+    </div>
   )
 }

@@ -2,6 +2,7 @@ import { BrowserWindow, shell } from 'electron'
 import { join } from 'node:path'
 import { IPC_EVENT } from '@shared/ipc'
 import { assetPath } from './assets'
+import { dispatchNavigation } from './browser/webviewBridge'
 import { loadSettings, saveSettings } from './settings'
 
 const DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL
@@ -65,10 +66,10 @@ export function createMainWindow(): BrowserWindow {
   // ウィンドウで受けて Renderer（アクティブなタブを知っている）へ回す。
   window.on('app-command', (event, command) => {
     if (command === 'browser-backward') {
-      emitToRenderer(IPC_EVENT.browserNavigate, 'back')
+      dispatchNavigation('back')
       event.preventDefault()
     } else if (command === 'browser-forward') {
-      emitToRenderer(IPC_EVENT.browserNavigate, 'forward')
+      dispatchNavigation('forward')
       event.preventDefault()
     }
   })

@@ -69,6 +69,14 @@ export function Browser({ visible, homeUrl, onBookmarkPage }: BrowserProps) {
     else views.current.delete(id)
   }, [])
 
+  // ナビゲーションは再描画に左右されないよう ref 経由で最新のタブを見る。
+  const activeIdRef = useRef<string | null>(activeId)
+  const activeContentsIdRef = useRef<number | null>(active?.contentsId ?? null)
+  useEffect(() => {
+    activeIdRef.current = activeId
+    activeContentsIdRef.current = active?.contentsId ?? null
+  }, [activeId, active?.contentsId])
+
   const activeView = activeId ? views.current.get(activeId) : undefined
 
   /**
@@ -78,11 +86,21 @@ export function Browser({ visible, homeUrl, onBookmarkPage }: BrowserProps) {
    */
   const navigateHistory = useCallback(
     (direction: 'back' | 'forward' | 'reload' | 'stop') => {
-      const contentsId = active?.contentsId
-      if (contentsId === undefined || contentsId === null) return
-      void window.sbm.browser.navigate(contentsId, direction)
+      // webview の要素を直接操作する。contentsId は dom-ready まで確定しないため、
+      // それに依存すると読み込み中に操作できない時間ができてしまう。
+      const view = activeIdRef.current ? views.current.get(activeIdRef.current) : undefined
+      if (view) {
+        if (direction === 'back') view.goBack()
+        else if (direction === 'forward') view.goForward()
+        else if (direction === 'reload') view.reload()
+        else view.stop()
+        return
+      }
+      // 要素を掴めない場合の保険として Main 側からも試す。
+      const contentsId = activeContentsIdRef.current
+      if (contentsId !== null) void window.sbm.browser.navigate(contentsId, direction)
     },
-    [active?.contentsId],
+    [],
   )
 
   // マウスのサイドボタン。Main から届いた方向をそのまま流す。

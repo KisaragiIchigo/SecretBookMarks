@@ -9,6 +9,19 @@ import { browserSession } from './session'
 
 const BROWSER_PARTITION = 'sbm-browser'
 
+// サイドボタンは app-command とゲストの DOM の2経路から届くため、
+// 短時間の重複を弾いて二重に戻ってしまうのを防ぐ。
+const NAV_DEDUP_MS = 250
+const lastNavigationAt: Record<string, number> = {}
+
+/** ナビゲーション要求を Renderer へ配送する。経路が複数あっても1回だけ通す。 */
+export function dispatchNavigation(direction: 'back' | 'forward'): void {
+  const now = Date.now()
+  if (now - (lastNavigationAt[direction] ?? 0) < NAV_DEDUP_MS) return
+  lastNavigationAt[direction] = now
+  emitToRenderer(IPC_EVENT.browserNavigate, direction)
+}
+
 /**
  * Shift の状態は context-menu の params に載らない。
  * 各フレームへ差し込んだガードが、右クリックの瞬間に修飾キーを送ってくるので、それを保持する。
@@ -131,6 +144,10 @@ export function registerWebviewBridge(): void {
 
   ipcMain.on('sbm:context-modifiers', (event, payload: { shift?: boolean }) => {
     shiftHeld.set(event.sender, payload?.shift === true)
+  })
+
+  ipcMain.on('sbm:nav-command', (_event, direction: 'back' | 'forward') => {
+    if (direction === 'back' || direction === 'forward') dispatchNavigation(direction)
   })
 
   const window = getMainWindow()

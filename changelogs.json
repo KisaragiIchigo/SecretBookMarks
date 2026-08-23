@@ -4,6 +4,29 @@
   "entries": [
     {
       "date": "2026-08-23",
+      "summary": "戻る/進むを修正した。原因は display:none による webview の切り離しと、サイドボタンの配送経路の取りこぼし",
+      "purpose": "3度の修正でも直らなかった戻る/進むへの対応。同じ構成で動作している既存実装（URLSaver）を参照して原因を特定した。",
+      "targets": [
+        "src/components/Browser/WebviewHost.tsx / index.tsx",
+        "electron/preload/webviewGuard.ts",
+        "electron/main/browser/webviewBridge.ts / window.ts",
+        ".gitignore"
+      ],
+      "changes": [
+        "非アクティブなタブの隠し方を display:none から visibility:hidden + z-index へ変更した。webview に display:none を当てるとゲストが切り離され、ナビゲーションの操作が届かなくなる。",
+        "マウスのサイドボタンをゲスト側の preload でも捕捉するようにした（mouseup / auxclick の button 3・4）。ポインタがページ上にあるときはゲストへマウスイベントとして配送され、ウィンドウの app-command が発火しないため。",
+        "app-command とゲスト由来の2経路を1つの配送関数へまとめ、250ms 以内の重複を弾いて二重に戻るのを防いだ。",
+        "ナビゲーションの実行を webview 要素の直接操作へ戻した。contentsId は dom-ready まで確定しないため、それに依存すると読み込み中に操作できない時間ができる。要素を掴めない場合のみ Main 側の webContents を使う。",
+        "アクティブなタブの参照を ref 経由にして、再描画の影響を受けないようにした。",
+        ".gitignore に URLSaver/ を追加（参考用に置かれた別リポジトリのため）。"
+      ],
+      "impact": "タブの切り替えは表示上の見え方が変わらないまま、非アクティブなタブのゲストが生き続けるようになった。",
+      "concerns": [
+        "サイドボタンの実機確認は未実施。ゲストからの通知が Main まで届くことは自動テストで確認済み。"
+      ]
+    },
+    {
+      "date": "2026-08-23",
       "summary": "保存名からサイト名を除き、ID を動画ファイル側から取るようにした",
       "purpose": "実際の SpankBang のページで「タイトル エロ動画 - SpankBang_7gf69.mp4」になってしまう問題への対応。",
       "targets": [

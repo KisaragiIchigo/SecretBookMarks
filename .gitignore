@@ -3,3 +3,6 @@ dist/
 release/
 *.local
 .DS_Store
+
+# 参考用に置かれた別プロジェクト（独自のリポジトリを持つ）
+URLSaver/
