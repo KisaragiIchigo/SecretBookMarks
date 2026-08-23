@@ -47,22 +47,45 @@ window.addEventListener('auxclick', onNavigationButton, true)
  * 保存するかどうかは利用者に確認し、保存する場合もヴォールト内で暗号化される。
  * ここで拾った値はディスクへは書かれない。
  */
+/**
+ * 送信されたフォームから、保存すべき利用者名とパスワードを選ぶ。
+ *
+ * パスワード欄が複数ある場合は変更・登録フォームのことが多い。
+ * 単純に最初の欄を採ると「旧パスワード」を保存してしまうため、
+ * 確認欄と一致する値（＝新しいパスワード）を優先する。
+ */
 const findLoginFields = (form: HTMLFormElement) => {
-  const password = form.querySelector<HTMLInputElement>('input[type="password"]')
-  if (!password || !password.value) return null
+  const passwords = Array.from(form.querySelectorAll<HTMLInputElement>('input[type="password"]')).filter(
+    (input) => input.value,
+  )
+  if (passwords.length === 0) return null
+
+  let chosen = passwords[0]
+  if (passwords.length > 1) {
+    // 同じ値が2回入力されているものを新しいパスワードとみなす
+    const duplicated = passwords.find(
+      (input, index) => passwords.findIndex((other, i) => i !== index && other.value === input.value) !== -1,
+    )
+    chosen = duplicated ?? passwords[passwords.length - 1]
+  }
 
   const inputs = Array.from(form.querySelectorAll<HTMLInputElement>('input'))
-  const passwordIndex = inputs.indexOf(password)
+  const chosenIndex = inputs.indexOf(chosen)
   // 利用者名はパスワード欄より前にある入力欄のうち、いちばん近いものを採る
   const username = inputs
-    .slice(0, passwordIndex)
+    .slice(0, chosenIndex)
     .reverse()
     .find((input) => {
       const type = (input.type || '').toLowerCase()
       return input.value && ['text', 'email', 'tel', 'username', ''].includes(type)
     })
 
-  return { username: username?.value ?? '', password: password.value }
+  return {
+    username: username?.value ?? '',
+    password: chosen.value,
+    /** パスワード欄が複数あった＝変更や登録の画面である可能性 */
+    multiplePasswordFields: passwords.length > 1,
+  }
 }
 
 window.addEventListener(
@@ -76,6 +99,7 @@ window.addEventListener(
       origin: location.origin,
       username: found.username,
       password: found.password,
+      multiplePasswordFields: found.multiplePasswordFields,
     })
   },
   true,

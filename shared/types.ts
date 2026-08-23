@@ -62,6 +62,21 @@ export interface StoredCredential {
   createdAt: number
   updatedAt: number
   lastUsedAt: number | null
+  /** 上書きで置き換えられた古いパスワード。新しいものが先頭 */
+  history: CredentialHistoryEntry[]
+}
+
+export interface CredentialHistoryEntry {
+  /** 暗号化済み */
+  secret: string
+  /** 置き換えられた時刻 */
+  replacedAt: number
+}
+
+/** 画面へ渡す履歴。パスワードは含めない。 */
+export interface CredentialHistoryView {
+  index: number
+  replacedAt: number
 }
 
 /** 画面へ渡す用。パスワードは含めない。 */
@@ -72,6 +87,8 @@ export interface CredentialSummary {
   createdAt: number
   updatedAt: number
   lastUsedAt: number | null
+  /** 過去のパスワードが何件残っているか */
+  historyCount: number
 }
 
 /** ログイン画面で拾った入力内容 */
@@ -79,6 +96,8 @@ export interface CredentialCapture {
   origin: string
   username: string
   password: string
+  /** パスワード欄が複数あった（変更・登録の画面と思われる） */
+  multiplePasswordFields?: boolean
 }
 
 /** Electron の Cookie を復元できる最小限の形に落としたもの */

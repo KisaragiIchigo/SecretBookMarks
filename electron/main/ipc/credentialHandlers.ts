@@ -2,15 +2,24 @@ import { IPC } from '@shared/ipc'
 import type { CredentialSummary } from '@shared/types'
 import { fillCredential } from '../browser/credentialFill'
 import {
+  credentialHistory,
   credentialsForOrigin,
   deleteCredential,
   listCredentials,
   normalizeOrigin,
+  restoreCredentialHistory,
   revealCredential,
+  revealCredentialHistory,
   saveCredential,
 } from '../vault/credentials'
 import { register, registerVoid } from './register'
-import { credentialFillSchema, credentialIdSchema, credentialSaveSchema, originSchema } from './schemas'
+import {
+  credentialFillSchema,
+  credentialHistorySchema,
+  credentialIdSchema,
+  credentialSaveSchema,
+  originSchema,
+} from './schemas'
 
 /**
  * ログイン情報の IPC。
@@ -32,4 +41,14 @@ export function registerCredentialHandlers(): void {
   register(IPC.credentialReveal, credentialIdSchema, ({ id }) => revealCredential(id))
 
   register(IPC.credentialFill, credentialFillSchema, ({ contentsId, id }) => fillCredential(contentsId, id))
+
+  register(IPC.credentialHistory, credentialIdSchema, ({ id }) => credentialHistory(id))
+
+  register(IPC.credentialHistoryReveal, credentialHistorySchema, ({ id, index }) =>
+    revealCredentialHistory(id, index),
+  )
+
+  register(IPC.credentialHistoryRestore, credentialHistorySchema, ({ id, index }) =>
+    restoreCredentialHistory(id, index),
+  )
 }

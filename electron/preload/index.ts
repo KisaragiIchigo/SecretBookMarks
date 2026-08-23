@@ -12,6 +12,7 @@ import type {
   ExportFormat,
   ExportSummary,
   CredentialCapture,
+  CredentialHistoryView,
   CredentialSummary,
   DownloadTask,
   FilterListInfo,
@@ -119,6 +120,11 @@ const api = {
     /** 利用者が明示的に表示を求めたときだけ使う */
     reveal: (id: string) => call<{ username: string; password: string } | null>(IPC.credentialReveal, { id }),
     fill: (contentsId: number, id: string) => call<boolean>(IPC.credentialFill, { contentsId, id }),
+    history: (id: string) => call<CredentialHistoryView[]>(IPC.credentialHistory, { id }),
+    revealHistory: (id: string, index: number) =>
+      call<string | null>(IPC.credentialHistoryReveal, { id, index }),
+    restoreHistory: (id: string, index: number) =>
+      call<CredentialSummary | null>(IPC.credentialHistoryRestore, { id, index }),
   },
   settings: {
     get: () => call<AppSettings>(IPC.settingsGet),

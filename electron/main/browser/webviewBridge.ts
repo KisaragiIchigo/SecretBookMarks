@@ -158,14 +158,21 @@ export function registerWebviewBridge(): void {
 
   // ログインフォームの送信を検知したら、保存するかを画面で確認する。
   // ここで受け取った値は保存を選ぶまでどこにも書かない。
-  ipcMain.on('sbm:credential-capture', (_event, payload: { origin?: string; username?: string; password?: string }) => {
-    if (!payload?.password || !payload.origin) return
-    emitToRenderer(IPC_EVENT.credentialCaptured, {
-      origin: payload.origin,
-      username: payload.username ?? '',
-      password: payload.password,
-    })
-  })
+  ipcMain.on(
+    'sbm:credential-capture',
+    (
+      _event,
+      payload: { origin?: string; username?: string; password?: string; multiplePasswordFields?: boolean },
+    ) => {
+      if (!payload?.password || !payload.origin) return
+      emitToRenderer(IPC_EVENT.credentialCaptured, {
+        origin: payload.origin,
+        username: payload.username ?? '',
+        password: payload.password,
+        multiplePasswordFields: payload.multiplePasswordFields === true,
+      })
+    },
+  )
 
   const window = getMainWindow()
   window?.webContents.on('will-attach-webview', (_event, webPreferences) => {

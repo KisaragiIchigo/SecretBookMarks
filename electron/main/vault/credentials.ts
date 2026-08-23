@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import type { CredentialSummary, StoredCredential } from '@shared/types'
+import type { CredentialHistoryView, CredentialSummary, StoredCredential } from '@shared/types'
 import { openSecret, sealSecret } from './secrets'
 import { session } from './session'
 
@@ -22,6 +22,8 @@ export function normalizeOrigin(url: string): string {
   }
 }
 
+const HISTORY_LIMIT = 5
+
 function toSummary(entry: StoredCredential): CredentialSummary {
   return {
     id: entry.id,
@@ -30,6 +32,7 @@ function toSummary(entry: StoredCredential): CredentialSummary {
     createdAt: entry.createdAt,
     updatedAt: entry.updatedAt,
     lastUsedAt: entry.lastUsedAt,
+    historyCount: entry.history?.length ?? 0,
   }
 }
 
@@ -52,6 +55,17 @@ export function saveCredential(input: { origin: string; username: string; passwo
   const existing = all().find((entry) => entry.origin === origin && entry.username === input.username)
 
   if (existing) {
+    // 同じパスワードなら何も変えない（ログインのたびに履歴が増えるのを防ぐ）。
+    if (openSecret(existing.secret) === input.password) {
+      existing.updatedAt = now
+      session.markDirty()
+      return toSummary(existing)
+    }
+    // 打ち間違いで正しいパスワードを失わないよう、古い方を履歴へ退避する。
+    existing.history = [{ secret: existing.secret, replacedAt: now }, ...(existing.history ?? [])].slice(
+      0,
+      HISTORY_LIMIT,
+    )
     existing.secret = sealSecret(input.password)
     existing.updatedAt = now
     session.markDirty()
@@ -66,6 +80,7 @@ export function saveCredential(input: { origin: string; username: string; passwo
     createdAt: now,
     updatedAt: now,
     lastUsedAt: null,
+    history: [],
   }
   all().unshift(created)
   session.markDirty()
@@ -96,4 +111,36 @@ export function markCredentialUsed(id: string): void {
   if (!entry) return
   entry.lastUsedAt = Date.now()
   session.markDirty()
+}
+
+/** 過去のパスワードの一覧。中身は含めず、いつ置き換わったかだけ返す。 */
+export function credentialHistory(id: string): CredentialHistoryView[] {
+  const entry = all().find((item) => item.id === id)
+  if (!entry) return []
+  return (entry.history ?? []).map((item, index) => ({ index, replacedAt: item.replacedAt }))
+}
+
+/** 過去のパスワードを1件だけ取り出す。利用者が明示的に求めたときのみ。 */
+export function revealCredentialHistory(id: string, index: number): string | null {
+  const entry = all().find((item) => item.id === id)
+  const found = entry?.history?.[index]
+  return found ? openSecret(found.secret) : null
+}
+
+/**
+ * 過去のパスワードを現在のものへ戻す。
+ * 打ち間違いで上書きしてしまった場合の復旧に使う。
+ */
+export function restoreCredentialHistory(id: string, index: number): CredentialSummary | null {
+  const entry = all().find((item) => item.id === id)
+  const found = entry?.history?.[index]
+  if (!entry || !found) return null
+
+  const now = Date.now()
+  const rest = entry.history.filter((_, position) => position !== index)
+  entry.history = [{ secret: entry.secret, replacedAt: now }, ...rest].slice(0, HISTORY_LIMIT)
+  entry.secret = found.secret
+  entry.updatedAt = now
+  session.markDirty()
+  return toSummary(entry)
 }

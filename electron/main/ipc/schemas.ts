@@ -103,6 +103,7 @@ export const credentialSaveSchema = z.object({
 })
 
 export const credentialIdSchema = z.object({ id: idSchema })
+export const credentialHistorySchema = z.object({ id: idSchema, index: z.number().int().min(0).max(20) })
 export const originSchema = z.object({ origin: z.string().trim().max(2048) })
 export const credentialFillSchema = z.object({
   contentsId: z.number().int().nonnegative(),
