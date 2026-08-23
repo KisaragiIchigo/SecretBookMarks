@@ -33,6 +33,12 @@ interface BrowserContextValue {
   revealSignal: number
   openTab: (url: string, activate?: boolean) => void
   closeTab: (id: string) => void
+  /** 指定タブより右／左をまとめて閉じる */
+  closeTabsBeside: (id: string, side: 'left' | 'right') => void
+  closeOtherTabs: (id: string) => void
+  closeAllTabs: () => void
+  /** Ctrl+Tab などで隣のタブへ移る。端まで行ったら反対側へ回る */
+  cycleTab: (direction: 'next' | 'previous') => void
   selectTab: (id: string) => void
   patchTab: (id: string, patch: Partial<BrowserTab>) => void
   refreshDownloads: () => Promise<void>
@@ -78,6 +84,45 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
       const next = current.filter((tab) => tab.id !== id)
       setActiveId((active) => (active === id ? (next[next.length - 1]?.id ?? null) : active))
       return next
+    })
+  }, [])
+
+  const closeTabsBeside = useCallback((id: string, side: 'left' | 'right') => {
+    setTabs((current) => {
+      const index = current.findIndex((tab) => tab.id === id)
+      if (index === -1) return current
+      const next = side === 'right' ? current.slice(0, index + 1) : current.slice(index)
+      setActiveId((active) => (next.some((tab) => tab.id === active) ? active : id))
+      return next
+    })
+  }, [])
+
+  const closeOtherTabs = useCallback((id: string) => {
+    setTabs((current) => {
+      const kept = current.filter((tab) => tab.id === id)
+      if (kept.length === 0) return current
+      setActiveId(id)
+      return kept
+    })
+  }, [])
+
+  const closeAllTabs = useCallback(() => {
+    setTabs([])
+    setActiveId(null)
+  }, [])
+
+  const cycleTab = useCallback((direction: 'next' | 'previous') => {
+    setTabs((current) => {
+      if (current.length < 2) return current
+      setActiveId((active) => {
+        const index = current.findIndex((tab) => tab.id === active)
+        if (index === -1) return current[0].id
+        const step = direction === 'next' ? 1 : -1
+        // 端まで行ったら反対側へ回る
+        const nextIndex = (index + step + current.length) % current.length
+        return current[nextIndex].id
+      })
+      return current
     })
   }, [])
 
@@ -148,6 +193,10 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
       revealSignal,
       openTab: (url: string, activate = true) => (url ? openTab(url, activate) : ensureHome()),
       closeTab,
+      closeTabsBeside,
+      closeOtherTabs,
+      closeAllTabs,
+      cycleTab,
       selectTab: setActiveId,
       patchTab,
       refreshDownloads,
@@ -163,6 +212,10 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
       openTab,
       ensureHome,
       closeTab,
+      closeTabsBeside,
+      closeOtherTabs,
+      closeAllTabs,
+      cycleTab,
       patchTab,
       refreshDownloads,
     ],

@@ -82,6 +82,15 @@
     @apply border border-white/[0.06] bg-black/40 shadow-[inset_0_1px_3px_rgba(0,0,0,0.5)];
   }
 
+  /* 送りボタンで動かす領域では、スクロールバーそのものを見せない */
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
   .label-caps {
     @apply text-xs font-medium uppercase tracking-[0.18em] text-slate-400;
   }

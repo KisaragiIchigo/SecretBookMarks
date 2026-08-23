@@ -3,6 +3,26 @@
   "description": "変更履歴。AI が再利用しやすいよう、日時・対象ファイル・変更概要・目的・影響範囲・懸念点を各エントリに記録する。",
   "entries": [
     {
+      "date": "2026-08-24",
+      "summary": "タブの操作性を改善した（Ctrl+Tab での移動、右クリックメニュー、送りボタン）",
+      "purpose": "タブの扱いが一般的なブラウザと違うという指摘への対応。",
+      "targets": [
+        "src/components/Browser/TabStrip.tsx（新規）",
+        "src/components/Browser/index.tsx / src/state/BrowserProvider.tsx",
+        "electron/main/browser/webviewBridge.ts / electron/preload/index.ts / shared/ipc.ts",
+        "src/index.css / package.json / README.md"
+      ],
+      "changes": [
+        "Ctrl+Tab で右、Ctrl+Shift+Tab で左のタブへ移動できるようにした。端まで行くと反対側へ回る。ページ側にフォーカスがある間は Renderer の keydown が発火しないため、検知は Main の before-input-event で行い、ホストとゲストの双方に仕掛ける。",
+        "タブの右クリックメニューを追加（このタブ / 右側 / 左側 / 他 / 全部を閉じる）。端のタブでは該当する項目を無効化する。中クリックでも閉じられる。",
+        "タブバーのスクロールバーを廃し、両端の送りボタンで動かすようにした。はみ出していないときはボタンを出さない。選択したタブが隠れている場合は自動で見える位置まで送る。",
+        "タブバーを TabStrip として切り出した（Browser 本体が肥大していたため）。",
+        "@radix-ui/react-context-menu を追加。"
+      ],
+      "impact": "タブを閉じたあとの選択タブは、閉じた対象が選択中だった場合のみ基準のタブへ移る。",
+      "concerns": []
+    },
+    {
       "date": "2026-08-23",
       "summary": "ログイン情報の上書き時に履歴を残すようにし、パスワード変更画面の取り違えを修正した",
       "purpose": "上書きの挙動を確認された際に、打ち間違いで正しいパスワードを失う危険と、変更画面で旧パスワードを拾う不具合が判明したため。",

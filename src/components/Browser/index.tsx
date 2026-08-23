@@ -6,8 +6,6 @@ import {
   Film,
   Home,
   KeyRound,
-  Loader2,
-  Plus,
   RotateCw,
   X,
 } from 'lucide-react'
@@ -19,6 +17,7 @@ import { formatCount } from '@/lib/format'
 import { useBrowser } from '@/state/BrowserProvider'
 import type { WebviewElement } from '@/types/global'
 import { MediaPanel } from './MediaPanel'
+import { TabStrip } from './TabStrip'
 import { WebviewHost } from './WebviewHost'
 
 export interface BrowserProps {
@@ -37,7 +36,21 @@ function toNavigationUrl(input: string): string {
 }
 
 export function Browser({ visible, homeUrl, onBookmarkPage }: BrowserProps) {
-  const { tabs, active, activeId, openTab, closeTab, selectTab, patchTab, mediaFor, revealSignal } = useBrowser()
+  const {
+    tabs,
+    active,
+    activeId,
+    openTab,
+    closeTab,
+    closeTabsBeside,
+    closeOtherTabs,
+    closeAllTabs,
+    cycleTab,
+    selectTab,
+    patchTab,
+    mediaFor,
+    revealSignal,
+  } = useBrowser()
   const views = useRef(new Map<string, WebviewElement>())
   const [draftUrl, setDraftUrl] = useState('')
   const [editing, setEditing] = useState(false)
@@ -105,6 +118,9 @@ export function Browser({ visible, homeUrl, onBookmarkPage }: BrowserProps) {
     [],
   )
 
+  // Ctrl+Tab / Ctrl+Shift+Tab。ページ側にフォーカスがあっても Main が拾って届く。
+  useEffect(() => window.sbm.events.onBrowserCycleTab((direction) => cycleTab(direction)), [cycleTab])
+
   // マウスのサイドボタン。Main から届いた方向をそのまま流す。
   useEffect(
     () => window.sbm.events.onBrowserNavigate((direction) => navigateHistory(direction)),
@@ -170,37 +186,16 @@ export function Browser({ visible, homeUrl, onBookmarkPage }: BrowserProps) {
 
   return (
     <div className={cn('flex min-h-0 flex-1 flex-col', visible ? 'flex' : 'hidden')}>
-      <div className="flex h-9 shrink-0 items-center gap-1 border-b border-white/[0.06] bg-white/[0.02] px-2">
-        <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => selectTab(tab.id)}
-              className={cn(
-                'group flex h-7 min-w-0 max-w-[13rem] shrink-0 items-center gap-2 rounded-md px-2.5 text-xs transition-colors',
-                tab.id === activeId ? 'bg-teal-500/10 text-teal-100' : 'text-slate-400 hover:bg-white/[0.04]',
-              )}
-            >
-              {tab.loading ? <Loader2 className="h-3 w-3 shrink-0 animate-spin" /> : null}
-              <span className="truncate">{tab.title || '新しいタブ'}</span>
-              <span
-                role="button"
-                tabIndex={-1}
-                aria-label="タブを閉じる"
-                onClick={(event) => {
-                  event.stopPropagation()
-                  closeTab(tab.id)
-                }}
-                className="shrink-0 text-slate-500 opacity-0 transition-opacity hover:text-rose-300 group-hover:opacity-100"
-              >
-                <X className="h-3 w-3" />
-              </span>
-            </button>
-          ))}
-          <IconButton label="新しいタブ" icon={<Plus className="h-3.5 w-3.5" />} onClick={() => openTab(homeUrl)} />
-        </div>
-      </div>
+      <TabStrip
+        tabs={tabs}
+        activeId={activeId}
+        onSelect={selectTab}
+        onClose={closeTab}
+        onCloseBeside={closeTabsBeside}
+        onCloseOthers={closeOtherTabs}
+        onCloseAll={closeAllTabs}
+        onNewTab={() => openTab(homeUrl)}
+      />
 
       <div className="flex h-11 shrink-0 items-center gap-1.5 border-b border-white/[0.06] px-2">
         <IconButton

@@ -89,5 +89,6 @@ export const IPC_EVENT = {
   browserOpenUrl: 'event:browser-open-url',
   browserCapturePage: 'event:browser-capture-page',
   browserNavigate: 'event:browser-navigate',
+  browserCycleTab: 'event:browser-cycle-tab',
   credentialCaptured: 'event:credential-captured',
 } as const

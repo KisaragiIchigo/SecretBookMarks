@@ -165,6 +165,8 @@ const api = {
       subscribe(IPC_EVENT.browserCapturePage, listener),
     onBrowserNavigate: (listener: (direction: 'back' | 'forward') => void) =>
       subscribe(IPC_EVENT.browserNavigate, listener),
+    onBrowserCycleTab: (listener: (direction: 'next' | 'previous') => void) =>
+      subscribe(IPC_EVENT.browserCycleTab, listener),
     onCredentialCaptured: (listener: (capture: CredentialCapture) => void) =>
       subscribe(IPC_EVENT.credentialCaptured, listener),
   },

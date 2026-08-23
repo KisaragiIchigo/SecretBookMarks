@@ -14,6 +14,21 @@ const BROWSER_PARTITION = 'sbm-browser'
 const NAV_DEDUP_MS = 250
 const lastNavigationAt: Record<string, number> = {}
 
+/**
+ * タブ移動などのキー操作を Renderer へ配送する。
+ * ページ側にフォーカスがある間は Renderer の keydown が発火しないため、
+ * 検知は必ず Main プロセスで行う。
+ */
+export function attachKeyboardShortcuts(contents: WebContents): void {
+  contents.on('before-input-event', (event, input) => {
+    if (input.type !== 'keyDown') return
+    const ctrl = input.control || input.meta
+    if (!ctrl || input.key !== 'Tab') return
+    event.preventDefault()
+    emitToRenderer(IPC_EVENT.browserCycleTab, input.shift ? 'previous' : 'next')
+  })
+}
+
 /** ナビゲーション要求を Renderer へ配送する。経路が複数あっても1回だけ通す。 */
 export function dispatchNavigation(direction: 'back' | 'forward'): void {
   const now = Date.now()
@@ -175,6 +190,7 @@ export function registerWebviewBridge(): void {
   )
 
   const window = getMainWindow()
+  if (window) attachKeyboardShortcuts(window.webContents)
   window?.webContents.on('will-attach-webview', (_event, webPreferences) => {
     // Renderer 側の指定に関わらず、危険な設定は付けさせない。
     delete webPreferences.preload
@@ -185,6 +201,9 @@ export function registerWebviewBridge(): void {
 
   app.on('web-contents-created', (_event, contents) => {
     if (contents.getType() !== 'webview') return
+
+    // ページ側にフォーカスがあるときも Ctrl+Tab を拾えるようにする。
+    attachKeyboardShortcuts(contents)
 
     contents.setWindowOpenHandler(({ url, disposition }) => {
       // Ctrl+クリックは background-tab、Ctrl+Shift+クリックは foreground-tab。
