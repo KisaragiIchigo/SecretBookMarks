@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { Eraser, FolderOpen } from 'lucide-react'
-import type { AppSettings } from '@shared/types'
+import { Eraser, FolderOpen, RefreshCw, ShieldCheck } from 'lucide-react'
+import type { AdblockStatusView, AppSettings, FilterListInfo } from '@shared/types'
 import { Button } from '@/components/ui/Button'
 import { Field, Input } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
@@ -40,6 +40,8 @@ export function SettingsDialog({ open, settings, vaultPath, onClose, onChange }:
     portable: boolean
   } | null>(null)
   const [ffmpeg, setFfmpeg] = useState<{ available: boolean; path: string | null } | null>(null)
+  const [adblock, setAdblock] = useState<AdblockStatusView | null>(null)
+  const [lists, setLists] = useState<FilterListInfo[]>([])
   const [current, setCurrent] = useState('')
   const [next, setNext] = useState('')
   const [confirmation, setConfirmation] = useState('')
@@ -52,6 +54,8 @@ export function SettingsDialog({ open, settings, vaultPath, onClose, onChange }:
     setConfirmation('')
     void window.sbm.system.appInfo().then(setAppInfo)
     void window.sbm.downloads.ffmpegStatus().then(setFfmpeg)
+    void window.sbm.adblock.status().then(setAdblock)
+    void window.sbm.adblock.lists().then(setLists)
   }, [open])
 
   const changePassword = async (event: FormEvent) => {
@@ -171,6 +175,61 @@ export function SettingsDialog({ open, settings, vaultPath, onClose, onChange }:
               </Button>
             </div>
           </form>
+        </section>
+
+        <section>
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="h-3.5 w-3.5 text-teal-300" />
+            <span className="label-caps flex-1">ad blocker</span>
+            {adblock ? (
+              <span className="font-mono text-xs text-slate-400">
+                {adblock.updating ? '更新中…' : adblock.ready ? `${adblock.listCount} リスト適用中` : '未取得'}
+              </span>
+            ) : null}
+          </div>
+
+          <div className="mt-1 divide-y divide-white/[0.06]">
+            <SwitchRow
+              label="広告とトラッカーをブロックする"
+              description="内蔵ブラウザに対して、下記のフィルターリストを適用します。"
+              checked={settings.adBlockEnabled}
+              onChange={(checked) => {
+                void onChange({ adBlockEnabled: checked })
+                void window.sbm.adblock.setEnabled(checked).then(setAdblock)
+              }}
+            />
+          </div>
+
+          <ul className="mt-2 grid gap-1 rounded-lg border border-white/[0.06] bg-black/20 px-3 py-2.5">
+            {lists.map((list) => (
+              <li key={list.id} className="flex items-center gap-2 text-xs text-slate-300">
+                <span className="h-1 w-1 shrink-0 rounded-full bg-teal-400" />
+                <span className="truncate">{list.title}</span>
+              </li>
+            ))}
+          </ul>
+
+          <div className="mt-2 flex items-center justify-between gap-3">
+            <p className="text-xs text-slate-400">
+              {adblock?.updatedAt
+                ? `最終更新: ${new Date(adblock.updatedAt).toLocaleString('ja-JP')}`
+                : 'フィルターは初回起動時に取得し、3日ごとに更新します。'}
+            </p>
+            <Button
+              size="sm"
+              icon={<RefreshCw className="h-3.5 w-3.5" />}
+              disabled={adblock?.updating}
+              onClick={() => {
+                toast.push({ title: 'フィルターを更新しています…' })
+                void window.sbm.adblock.update().then((status) => {
+                  setAdblock(status)
+                  toast.push({ title: 'フィルターを更新しました', tone: 'success' })
+                })
+              }}
+            >
+              今すぐ更新
+            </Button>
+          </div>
         </section>
 
         <section>

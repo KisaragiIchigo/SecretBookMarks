@@ -78,11 +78,12 @@ export function Browser({ visible, homeUrl, onBookmarkPage }: BrowserProps) {
     void activeView.loadURL(url)
   }
 
-  const saveMedia = (candidate: MediaCandidate) => {
+  const saveMedia = (candidate: MediaCandidate, saveAs: boolean) => {
     void window.sbm.downloads.start({
       url: candidate.url,
       kind: candidate.kind,
       pageUrl: active?.url ?? '',
+      saveAs,
     })
   }
 

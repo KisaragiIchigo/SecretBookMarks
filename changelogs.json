@@ -4,6 +4,37 @@
   "entries": [
     {
       "date": "2026-08-23",
+      "summary": "動画の「名前を付けて保存」と、9種類のフィルターによる広告ブロックを追加。Electron を 43 へ更新",
+      "purpose": "保存先を都度選べるようにすることと、内蔵ブラウザでの広告・トラッカーの遮断のため。",
+      "targets": [
+        "electron/main/browser/adblock.ts（新規）",
+        "electron/main/browser/webviewBridge.ts / download/manager.ts",
+        "electron/main/ipc/browserHandlers.ts / schemas.ts / settings.ts / shared/types.ts / shared/ipc.ts",
+        "electron/preload/index.ts",
+        "src/components/Browser/MediaPanel.tsx / index.tsx / dialogs/SettingsDialog.tsx",
+        "scripts/build-main.mjs / scripts/adblockerPreloadPath.cjs（新規）",
+        "package.json / README.md"
+      ],
+      "changes": [
+        "右クリックメニューに「名前を付けて保存(&V)」を追加。Windows のニーモニックなので、メニューを開いて V を押すと実行される。Shift を押しながらの右クリックでは、この項目を先頭に並べ替える。",
+        "Shift の状態は ContextMenuParams に含まれないため before-input-event で追跡する。取りこぼしても V のニーモニックは常に有効なので、操作が破綻しない構成にした。",
+        "保存先は最後に「名前を付けて保存」で使ったフォルダー（設定 lastSaveDir）を既定値にする。",
+        "広告ブロックを追加。購読リストの URL は uBlock Origin の assets.json に載っている正規の配布元を使う（自前で組み立てた URL は 404 になることを実測で確認したため）。",
+        "フィルターはシリアライズして dataDir へキャッシュし、起動時は即適用、3日以上経っていれば裏で更新する。",
+        "Electron を 33 から 43 へ更新。adblocker の要素非表示が session.registerPreloadScript（Electron 35+）を必要とすること、および任意の Web を開くアプリになった以上 Chromium を新しく保つ必要があることが理由。",
+        "esbuild が import 構文を見て依存の ESM 実装を選ぶため、CJS 出力でも adblocker の ESM 版が取り込まれ、import.meta が空オブジェクトへ潰れて起動時に落ちていた。該当パッケージを CJS 実装へ向けるプラグインを追加して解消。",
+        "adblocker の preload スクリプトは実行時に require.resolve で探されるが配布物に node_modules は含めないため、dist へ複製したファイルを指す実装へ差し替えた。",
+        "要素非表示が使えない環境では通信ブロックのみへ自動で切り替えるフォールバックを入れた。",
+        "ファイル名の無効文字を潰す正規表現に制御文字の範囲が壊れた形で入っていたのを修正し、空白と日本語が保持されるようにした。"
+      ],
+      "impact": "インストーラーは 134MB（ffmpeg 同梱ぶんを含む）。フィルターの初回取得には通信が必要で、取得できない場合は広告が通る。",
+      "concerns": [
+        "実サイトでの右クリック保存・Shift+右クリック・広告ブロックの見た目は目視確認が未実施。ローカル検証と実広告ドメインに対する遮断テストは通っている。",
+        "Electron 43 への更新は自動テストで確認済みだが、長期運用での差異は未知。"
+      ]
+    },
+    {
+      "date": "2026-08-23",
       "summary": "内蔵ブラウザと動画ダウンローダーを追加し、ブックマーカー兼ブラウザ兼ダウンローダーにした",
       "purpose": "ブックマークの収集・閲覧・保存を1つのアプリで完結させるため。",
       "targets": [

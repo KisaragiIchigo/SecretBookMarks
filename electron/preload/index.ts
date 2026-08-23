@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { IPC, IPC_EVENT, type IpcResult } from '@shared/ipc'
 import type {
+  AdblockStatusView,
   AppSettings,
   Bookmark,
   BookmarkInput,
@@ -11,6 +12,7 @@ import type {
   ExportFormat,
   ExportSummary,
   DownloadTask,
+  FilterListInfo,
   ImportSummary,
   LinkStatus,
   MediaCandidate,
@@ -77,9 +79,20 @@ const api = {
     mediaClear: (contentsId: number) => call<boolean>(IPC.browserMediaClear, { contentsId }),
     clearData: () => call<boolean>(IPC.browserClearData),
   },
+  adblock: {
+    status: () => call<AdblockStatusView>(IPC.adblockStatus),
+    lists: () => call<FilterListInfo[]>(IPC.adblockLists),
+    update: () => call<AdblockStatusView>(IPC.adblockUpdate),
+    setEnabled: (enabled: boolean) => call<AdblockStatusView>(IPC.adblockSetEnabled, { enabled }),
+  },
   downloads: {
-    start: (input: { url: string; kind: 'file' | 'hls'; pageUrl: string; fileName?: string }) =>
-      call<DownloadTask>(IPC.downloadStart, input),
+    start: (input: {
+      url: string
+      kind: 'file' | 'hls'
+      pageUrl: string
+      fileName?: string
+      saveAs?: boolean
+    }) => call<DownloadTask | null>(IPC.downloadStart, input),
     cancel: (id: string) => call<boolean>(IPC.downloadCancel, { id }),
     reveal: (id: string) => call<boolean>(IPC.downloadReveal, { id }),
     list: () => call<DownloadTask[]>(IPC.downloadList),

@@ -13,7 +13,8 @@
 - 🗂️ **タグ運用** — サイドバーからのタグ絞り込み（AND）、名前の変更、全項目からの除去、選択項目へのタグ一括編集（追加 / 削除 / 置き換え）に対応します。
 - 🧭 **インスペクタ** — 選択した項目のタイトル・タグ・グループ・メモをその場で編集でき、追加日時や開いた回数も確認できます。
 - 🧭 **内蔵ブラウザ** — タブ付きのブラウザを内蔵しています。開いているページをそのままブックマークに追加でき、右クリックからも登録できます。
-- 🎞️ **動画の保存** — 右クリックの「この動画を保存」に加えて、ページが読み込んだ動画ファイルを通信から検出して一覧表示します。直リンクの mp4 等はそのまま保存し、HLS / DASH（m3u8・mpd）は同梱の ffmpeg で mp4 に結合します。Referer と Cookie を引き継ぐため、ログインが必要なページでも保存できます。
+- 🛡️ **広告・トラッカーのブロック** — EasyList、EasyPrivacy、uBlock filters、AdGuard Japanese など 9 種類のフィルターリストを適用します。フィルターは初回起動時に取得し、3 日ごとに自動更新します。
+- 🎞️ **動画の保存** — 右クリックの「この動画を保存」「名前を付けて保存(V)」に加えて、ページが読み込んだ動画ファイルを通信から検出して一覧表示します。直リンクの mp4 等はそのまま保存し、HLS / DASH（m3u8・mpd）は同梱の ffmpeg で mp4 に結合します。Referer と Cookie を引き継ぐため、ログインが必要なページでも保存できます。
 - 🔒 **閲覧の痕跡を残さない** — 内蔵ブラウザは非永続セッションで動作し、Cookie は（設定が有効なときのみ）ヴォールト内に暗号化して保存します。ダウンロード履歴もヴォールト内に入ります。
 - ♻️ **重複の解決** — 正規化した URL が一致した場合に、マージ / 上書き / スキップを選べます。
 - 🗑️ **ゴミ箱** — 削除は論理削除で、保持期間を過ぎた項目だけを自動で完全削除します。
@@ -51,6 +52,7 @@ remake/
 │   │   │   ├── fetchPageMeta.ts    … タイトル / ファビコン取得、疎通確認
 │   │   │   └── faviconQueue.ts     … 未取得ドメインの並列取得キュー
 │   │   ├── browser/
+│   │   │   ├── adblock.ts          … フィルターリストの取得・キャッシュ・適用
 │   │   │   ├── session.ts          … 非永続セッションと Cookie の暗号化保存
 │   │   │   ├── mediaSniffer.ts     … 通信を監視して動画・音声の URL を捕捉
 │   │   │   └── webviewBridge.ts    … 右クリックメニューと webview の安全設定
@@ -125,12 +127,13 @@ Renderer（React）──invoke──▶ preload（ContextBridge）──▶ Mai
 
 | カテゴリ | 採用技術 |
 | --- | --- |
-| デスクトップ基盤 | Electron 33（contextIsolation 有効 / nodeIntegration 無効） |
+| デスクトップ基盤 | Electron 43（contextIsolation 有効 / nodeIntegration 無効） |
 | ビルド | Vite 5（Renderer）、esbuild（Main・Preload） |
 | UI | React 18 + TypeScript 5 |
 | スタイル | Tailwind CSS v3、Radix UI、Framer Motion（LazyMotion + m） |
 | フォント | Space Grotesk / IBM Plex Sans JP / IBM Plex Mono（@fontsource でローカル同梱） |
 | 内蔵ブラウザ | Electron webview（非永続パーティション） |
+| 広告ブロック | @ghostery/adblocker-electron（uBlock Origin と同じフィルター形式） |
 | 動画の結合 | ffmpeg（ffmpeg-static を同梱） |
 | 暗号 | Node.js crypto（scrypt + AES-256-GCM）、zlib gzip |
 | 入力検証 | Zod（IPC 境界と設定ファイル） |
@@ -199,6 +202,7 @@ npm run dist         # Windows 向けインストーラーとポータブル版�
 | `Ctrl+L` | ヴォールトをロック |
 | `Delete` | 選択項目をゴミ箱へ（ゴミ箱では完全削除） |
 | `Ctrl+Shift+B` | ウィンドウを呼び出してクイック追加（グローバル） |
+| `Shift` + 右クリック → `V` | 動画を「名前を付けて保存」（保存先は前回の場所を記憶） |
 | `Enter` / ダブルクリック | ブラウザで開く |
 
 ## 動画の保存について

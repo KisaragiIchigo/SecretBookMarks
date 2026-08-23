@@ -21,6 +21,9 @@ const settingsSchema = z.object({
   browserHomeUrl: z.string().max(2048).default('https://duckduckgo.com/'),
   downloadDir: z.string().max(4096).nullable().default(null),
   ffmpegPath: z.string().max(4096).nullable().default(null),
+  adBlockEnabled: z.boolean().default(true),
+  /** 「名前を付けて保存」で最後に使ったフォルダー */
+  lastSaveDir: z.string().max(4096).nullable().default(null),
   minimizeToTray: z.boolean().default(true),
   sortMode: z
     .enum(['added-desc', 'added-asc', 'title-asc', 'title-desc', 'opened-desc', 'opencount-desc', 'updated-desc'])

@@ -1,6 +1,7 @@
 import { dialog } from 'electron'
 import { IPC } from '@shared/ipc'
-import type { AppSettings, DownloadTask, MediaCandidate } from '@shared/types'
+import type { AdblockStatusView, AppSettings, DownloadTask, FilterListInfo, MediaCandidate } from '@shared/types'
+import { FILTER_LISTS, adblockStatus, setAdblockEnabled, updateFilters } from '../browser/adblock'
 import { clearBrowserData } from '../browser/session'
 import { clearMediaFor, mediaCandidates } from '../browser/mediaSniffer'
 import { downloads } from '../download/manager'
@@ -8,7 +9,7 @@ import { ffmpegStatus } from '../download/ffmpeg'
 import { saveSettings } from '../settings'
 import { getMainWindow } from '../window'
 import { register, registerVoid } from './register'
-import { contentsIdSchema, downloadIdSchema, startDownloadSchema } from './schemas'
+import { adblockToggleSchema, contentsIdSchema, downloadIdSchema, startDownloadSchema } from './schemas'
 
 export function registerBrowserHandlers(): void {
   register(IPC.browserMediaList, contentsIdSchema, ({ contentsId }): MediaCandidate[] =>
@@ -25,7 +26,24 @@ export function registerBrowserHandlers(): void {
     return true
   })
 
-  register(IPC.downloadStart, startDownloadSchema, (input): Promise<DownloadTask> => downloads.start(input))
+  registerVoid<AdblockStatusView>(IPC.adblockStatus, () => adblockStatus(), { requireUnlock: false })
+  registerVoid<FilterListInfo[]>(IPC.adblockLists, () => FILTER_LISTS, { requireUnlock: false })
+  registerVoid<AdblockStatusView>(IPC.adblockUpdate, () => updateFilters(), { requireUnlock: false })
+  register(
+    IPC.adblockSetEnabled,
+    adblockToggleSchema,
+    ({ enabled }): AdblockStatusView => {
+      saveSettings({ adBlockEnabled: enabled })
+      return setAdblockEnabled(enabled)
+    },
+    { requireUnlock: false },
+  )
+
+  register(
+    IPC.downloadStart,
+    startDownloadSchema,
+    (input): Promise<DownloadTask | null> => downloads.start(input),
+  )
 
   register(IPC.downloadCancel, downloadIdSchema, ({ id }) => {
     downloads.cancel(id)

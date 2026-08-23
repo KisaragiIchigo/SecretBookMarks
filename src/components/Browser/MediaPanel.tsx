@@ -1,4 +1,4 @@
-import { Download, Film, Radio, X } from 'lucide-react'
+import { Download, Film, PenLine, Radio, X } from 'lucide-react'
 import type { MediaCandidate } from '@shared/types'
 import { Button } from '@/components/ui/Button'
 import { IconButton } from '@/components/ui/IconButton'
@@ -10,7 +10,7 @@ export interface MediaPanelProps {
   pageUrl: string
   ffmpegAvailable: boolean
   onClose: () => void
-  onSave: (candidate: MediaCandidate) => void
+  onSave: (candidate: MediaCandidate, saveAs: boolean) => void
 }
 
 function formatSize(bytes: number | null): string {
@@ -68,17 +68,29 @@ export function MediaPanel({ candidates, pageUrl, ffmpegAvailable, onClose, onSa
                   {blocked ? (
                     <span className="text-xs text-amber-300">ffmpeg が必要です</span>
                   ) : (
-                    <span className="text-xs text-slate-400">{isStream ? '結合して mp4 で保存します' : '直接保存します'}</span>
+                    <span className="min-w-0 flex-1 truncate text-xs text-slate-400">
+                      {isStream ? '結合して mp4 で保存' : '直接保存'}
+                    </span>
                   )}
-                  <Button
-                    size="sm"
-                    variant="primary"
-                    icon={<Download className="h-3.5 w-3.5" />}
-                    disabled={blocked}
-                    onClick={() => onSave({ ...candidate, pageUrl })}
-                  >
-                    保存
-                  </Button>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <Button
+                      size="sm"
+                      icon={<PenLine className="h-3.5 w-3.5" />}
+                      disabled={blocked}
+                      onClick={() => onSave({ ...candidate, pageUrl }, true)}
+                    >
+                      名前を付けて
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="primary"
+                      icon={<Download className="h-3.5 w-3.5" />}
+                      disabled={blocked}
+                      onClick={() => onSave({ ...candidate, pageUrl }, false)}
+                    >
+                      保存
+                    </Button>
+                  </div>
                 </div>
               </div>
             )

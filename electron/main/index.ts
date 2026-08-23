@@ -1,5 +1,6 @@
 import { BrowserWindow, app, globalShortcut } from 'electron'
 import { IPC_EVENT } from '@shared/ipc'
+import { initAdblock } from './browser/adblock'
 import { restoreCookies, startCookieSync } from './browser/session'
 import { startMediaSniffer } from './browser/mediaSniffer'
 import { registerWebviewBridge } from './browser/webviewBridge'
@@ -61,6 +62,7 @@ async function bootstrap(): Promise<void> {
   registerWebviewBridge()
   startMediaSniffer()
   startCookieSync()
+  void initAdblock()
   downloads.init()
   downloads.on('changed', (task) => emitToRenderer(IPC_EVENT.downloadChanged, task))
 

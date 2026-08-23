@@ -84,6 +84,9 @@ export interface AppSettings {
   downloadDir: string | null
   /** null なら同梱の ffmpeg を使う */
   ffmpegPath: string | null
+  adBlockEnabled: boolean
+  /** 「名前を付けて保存」で最後に使ったフォルダー */
+  lastSaveDir: string | null
   /** 閉じるボタンでタスクトレイに常駐させる */
   minimizeToTray: boolean
   sortMode: SortMode
@@ -194,4 +197,20 @@ export interface BrowserPageState {
   loading: boolean
   canGoBack: boolean
   canGoForward: boolean
+}
+
+export interface AdblockStatusView {
+  enabled: boolean
+  ready: boolean
+  updatedAt: number | null
+  listCount: number
+  updating: boolean
+  /** 要素の非表示（cosmetic filtering）が使えているか */
+  cosmetics: boolean
+}
+
+export interface FilterListInfo {
+  id: string
+  title: string
+  url: string
 }

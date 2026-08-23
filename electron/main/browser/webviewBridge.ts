@@ -6,50 +6,57 @@ import { clearMediaFor, mediaCandidates } from './mediaSniffer'
 
 const BROWSER_PARTITION = 'sbm-browser'
 
+/** Shift を押しているかは右クリックの params に来ないので、キー入力から自前で追う。 */
+const shiftHeld = new WeakMap<WebContents, boolean>()
+
 function isStream(url: string): boolean {
   return /\.(m3u8|mpd)(\?|#|$)/i.test(url)
 }
 
+function saveMedia(url: string, pageUrl: string, saveAs: boolean): void {
+  void downloads.start({ url, kind: isStream(url) ? 'hls' : 'file', pageUrl, saveAs })
+}
+
 function buildContextMenu(contents: WebContents, params: ContextMenuParams): Menu {
   const pageUrl = contents.getURL()
+  const withShift = shiftHeld.get(contents) === true
   const template: Electron.MenuItemConstructorOptions[] = []
 
-  if (params.mediaType === 'video' || params.mediaType === 'audio') {
-    const src = params.srcURL
-    if (src && src.startsWith('blob:')) {
-      template.push({
-        label: 'この動画は保存できません（ページ内で組み立てられた形式）',
-        enabled: false,
-      })
-      template.push({
-        label: '検出済みの動画から探す',
-        click: () => emitToRenderer(IPC_EVENT.mediaDetected, { contentsId: contents.id, candidates: mediaCandidates(contents.id), reveal: true }),
-      })
-    } else if (src) {
-      template.push({
-        label: 'この動画を保存',
-        click: () => {
-          void downloads.start({ url: src, kind: isStream(src) ? 'hls' : 'file', pageUrl })
-        },
-      })
-    }
-    template.push({ type: 'separator' })
-  }
+  const media = params.mediaType === 'video' || params.mediaType === 'audio' ? params.srcURL : ''
+  const image = params.mediaType === 'image' ? params.srcURL : ''
+  const target = media || image
 
-  if (params.mediaType === 'image' && params.srcURL && !params.srcURL.startsWith('blob:')) {
+  if (target && target.startsWith('blob:')) {
+    template.push({ label: 'この動画は直接保存できません（ページ内で組み立てられた形式）', enabled: false })
     template.push({
-      label: 'この画像を保存',
-      click: () => {
-        void downloads.start({ url: params.srcURL, kind: 'file', pageUrl })
-      },
+      label: '検出済みの動画から探す(&V)',
+      click: () =>
+        emitToRenderer(IPC_EVENT.mediaDetected, {
+          contentsId: contents.id,
+          candidates: mediaCandidates(contents.id),
+          reveal: true,
+        }),
     })
+    template.push({ type: 'separator' })
+  } else if (target) {
+    const saveAsItem: Electron.MenuItemConstructorOptions = {
+      // (&V) は Windows のニーモニック。メニューを開いて V を押すとこれが実行される。
+      label: '名前を付けて保存(&V)',
+      click: () => saveMedia(target, pageUrl, true),
+    }
+    const quickItem: Electron.MenuItemConstructorOptions = {
+      label: media ? 'この動画を保存' : 'この画像を保存',
+      click: () => saveMedia(target, pageUrl, false),
+    }
+    // Shift を押しながらの右クリックでは「名前を付けて保存」を先頭に出す。
+    template.push(...(withShift ? [saveAsItem, quickItem] : [quickItem, saveAsItem]))
     template.push({ type: 'separator' })
   }
 
   const detected = mediaCandidates(contents.id)
-  if (detected.length > 0) {
+  if (detected.length > 0 && !target) {
     template.push({
-      label: `このページで見つかった動画（${detected.length}件）を表示`,
+      label: `このページで見つかった動画（${detected.length}件）を表示(&V)`,
       click: () =>
         emitToRenderer(IPC_EVENT.mediaDetected, {
           contentsId: contents.id,
@@ -75,12 +82,20 @@ function buildContextMenu(contents: WebContents, params: ContextMenuParams): Men
   }
 
   template.push({
-    label: 'このページをブックマークに追加',
+    label: 'このページをブックマークに追加(&B)',
     click: () => emitToRenderer(IPC_EVENT.browserCapturePage, { url: pageUrl, title: contents.getTitle() }),
   })
   template.push({ type: 'separator' })
-  template.push({ label: '戻る', enabled: contents.navigationHistory.canGoBack(), click: () => contents.navigationHistory.goBack() })
-  template.push({ label: '進む', enabled: contents.navigationHistory.canGoForward(), click: () => contents.navigationHistory.goForward() })
+  template.push({
+    label: '戻る',
+    enabled: contents.navigationHistory.canGoBack(),
+    click: () => contents.navigationHistory.goBack(),
+  })
+  template.push({
+    label: '進む',
+    enabled: contents.navigationHistory.canGoForward(),
+    click: () => contents.navigationHistory.goForward(),
+  })
   template.push({ label: '再読み込み', click: () => contents.reload() })
   template.push({ type: 'separator' })
   template.push({ label: '既定のブラウザーで開く', click: () => void shell.openExternal(pageUrl) })
@@ -109,6 +124,11 @@ export function registerWebviewBridge(): void {
     contents.setWindowOpenHandler(({ url }) => {
       if (/^https?:\/\//i.test(url)) emitToRenderer(IPC_EVENT.browserOpenUrl, url)
       return { action: 'deny' }
+    })
+
+    contents.on('before-input-event', (_inputEvent, input) => {
+      if (input.type === 'keyDown') shiftHeld.set(contents, input.shift)
+      else if (input.type === 'keyUp' && input.key === 'Shift') shiftHeld.set(contents, false)
     })
 
     contents.on('did-start-navigation', (details) => {

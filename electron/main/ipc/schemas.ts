@@ -79,6 +79,9 @@ export const startDownloadSchema = z.object({
   kind: z.enum(['file', 'hls']),
   pageUrl: z.string().trim().max(4096).default(''),
   fileName: z.string().trim().max(200).optional(),
+  saveAs: z.boolean().optional(),
 })
 
 export const downloadIdSchema = z.object({ id: idSchema })
+
+export const adblockToggleSchema = z.object({ enabled: z.boolean() })
