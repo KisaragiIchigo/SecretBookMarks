@@ -26,9 +26,11 @@ export interface WorkspaceProps {
   settings: AppSettings
   mode: 'library' | 'browser'
   onOpenSettings: () => void
+  /** 内蔵ブラウザで開く。ブラウザ画面への切り替えも行う */
+  onNavigate: (url: string) => void
 }
 
-export function Workspace({ settings, mode, onOpenSettings }: WorkspaceProps) {
+export function Workspace({ settings, mode, onOpenSettings, onNavigate }: WorkspaceProps) {
   const { bookmarks, favicons, saveState, actions, updateSettings, refresh, lock } = useVault()
   const toast = useToast()
   const searchRef = useRef<HTMLInputElement>(null)
@@ -46,6 +48,17 @@ export function Workspace({ settings, mode, onOpenSettings }: WorkspaceProps) {
   const focused = useMemo(
     () => (selection.selected.length === 1 ? bookmarks.find((b) => b.id === selection.selected[0]) ?? null : null),
     [bookmarks, selection.selected],
+  )
+
+  /** ブックマークを内蔵ブラウザで開く。開いた回数の記録も同時に行う。 */
+  const openBookmark = useCallback(
+    (id: string) => {
+      const bookmark = bookmarks.find((entry) => entry.id === id)
+      if (!bookmark) return
+      onNavigate(bookmark.url)
+      void actions.open(id)
+    },
+    [actions, bookmarks, onNavigate],
   )
 
   const targetIds = useCallback(
@@ -219,7 +232,7 @@ export function Workspace({ settings, mode, onOpenSettings }: WorkspaceProps) {
             selectedSet={selection.selectedSet}
             emptyMessage={emptyMessage}
             onSelect={selection.select}
-            onOpen={(id) => void actions.open(id)}
+            onOpen={openBookmark}
             onToggleFavorite={(id, favorite) => void actions.setFavorite([id], favorite)}
             onClearSelection={selection.clear}
           />
@@ -229,7 +242,7 @@ export function Workspace({ settings, mode, onOpenSettings }: WorkspaceProps) {
           bookmark={focused}
           selectedCount={selection.selected.length}
           onUpdate={(id, patch) => void actions.update(id, patch)}
-          onOpen={(id) => void actions.open(id)}
+          onOpen={openBookmark}
           onCopy={(url) => void handleCopy(url)}
           onEdit={capture.openEdit}
           onTrash={() => void handleTrash()}
@@ -273,7 +286,7 @@ export function Workspace({ settings, mode, onOpenSettings }: WorkspaceProps) {
         favicons={favicons}
         commands={commands}
         onClose={() => setPaletteOpen(false)}
-        onOpenBookmark={(id) => void actions.open(id)}
+        onOpenBookmark={openBookmark}
       />
     </>
   )

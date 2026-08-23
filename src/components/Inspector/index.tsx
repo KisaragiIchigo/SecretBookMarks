@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Copy, ExternalLink, PencilLine, RadioTower, Star, Trash2 } from 'lucide-react'
+import { Compass, Copy, ExternalLink, PencilLine, RadioTower, Star, Trash2 } from 'lucide-react'
 import type { Bookmark, BookmarkPatchInput } from '@shared/types'
 import { Button } from '@/components/ui/Button'
 import { Field, Input, Textarea } from '@/components/ui/Input'
@@ -190,14 +190,26 @@ export function Inspector({
       </div>
 
       <div className="grid grid-cols-2 gap-2 border-t border-white/[0.06] p-3">
-        <Button variant="primary" size="sm" icon={<ExternalLink className="h-3.5 w-3.5" />} onClick={() => onOpen(bookmark.id)}>
+        <Button
+          variant="primary"
+          size="sm"
+          icon={<Compass className="h-3.5 w-3.5" />}
+          onClick={() => onOpen(bookmark.id)}
+        >
           開く
         </Button>
-        <Button size="sm" icon={<Copy className="h-3.5 w-3.5" />} onClick={() => onCopy(bookmark.url)}>
-          URLをコピー
+        <Button
+          size="sm"
+          icon={<ExternalLink className="h-3.5 w-3.5" />}
+          onClick={() => void window.sbm.system.openExternal(bookmark.url)}
+        >
+          既定のブラウザー
         </Button>
         <Button size="sm" icon={<PencilLine className="h-3.5 w-3.5" />} onClick={() => onEdit(bookmark)}>
           詳細を編集
+        </Button>
+        <Button size="sm" icon={<Copy className="h-3.5 w-3.5" />} onClick={() => onCopy(bookmark.url)}>
+          URLをコピー
         </Button>
         <Button variant="danger" size="sm" icon={<Trash2 className="h-3.5 w-3.5" />} onClick={onTrash}>
           ゴミ箱へ

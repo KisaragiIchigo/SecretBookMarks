@@ -68,7 +68,7 @@ export const exportSchema = z.object({
 })
 export const copyTextSchema = z.object({ text: z.string().max(8192) })
 export const openExternalSchema = z.object({ url: httpUrlSchema })
-export const openBookmarkSchema = z.object({ id: idSchema })
+export const openBookmarkSchema = z.object({ id: idSchema, external: z.boolean().default(false) })
 
 // ===== 内蔵ブラウザ / ダウンロード =====
 

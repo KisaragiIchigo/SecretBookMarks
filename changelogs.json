@@ -4,6 +4,30 @@
   "entries": [
     {
       "date": "2026-08-23",
+      "summary": "Shift+右クリックのメニュー表示、ブックマークの内蔵ブラウザ表示、マウスのサイドボタンに対応した",
+      "purpose": "実使用で挙がった3点への対応。",
+      "targets": [
+        "electron/preload/webviewGuard.ts（新規）",
+        "electron/main/browser/webviewBridge.ts / window.ts",
+        "electron/main/ipc/bookmarkHandlers.ts / schemas.ts / electron/preload/index.ts / shared/ipc.ts",
+        "src/App.tsx / src/components/Workspace / Browser / Inspector / src/state/VaultProvider.tsx",
+        "scripts/build-main.mjs / tsconfig.electron.json / README.md"
+      ],
+      "changes": [
+        "右クリック禁止の解除: Firefox の Shift+右クリックによるバイパスは Chromium には無いことを実測で確認した（preventDefault されたページでは Shift 有無に関わらず context-menu が発火しない）。各フレームへ preload を差し込み、Shift が押されているときだけ window の捕捉フェーズで stopImmediatePropagation してページ側のハンドラを走らせないようにした。",
+        "Shift の判定を before-input-event の推測から、ガードが右クリックの瞬間に送る IPC へ変更した。キーボードのフォーカス位置に左右されなくなった。",
+        "ブックマークを開く動線を内蔵ブラウザへ変更。bookmarksOpen に external を追加し、既定では開いた記録だけを行い、タブの用意は Renderer が担当する。インスペクタに「既定のブラウザー」を残した。",
+        "マウスのサイドボタンに対応。WM_APPCOMMAND は webview では拾えないため、BrowserWindow の app-command で受けて、アクティブなタブを知っている Renderer へ方向を伝える。",
+        "preload はレンダラ側の文脈で動くため、tsconfig.electron.json の lib に DOM を追加した。"
+      ],
+      "impact": "ブックマークのダブルクリックとコマンドパレットからの実行は、外部ブラウザではなく内蔵ブラウザのタブで開くようになった。",
+      "concerns": [
+        "ガードは Shift のみを対象にしている。素の右クリックはページ側の実装を尊重する。",
+        "サイドボタンは Windows の WM_APPCOMMAND を前提にしている。"
+      ]
+    },
+    {
+      "date": "2026-08-23",
       "summary": "動画サイトで保存できない3つの原因を特定して修正した（検出漏れ・iframe・ホットリンク防止）",
       "purpose": "実在の動画サイトで検出も保存もできない、という報告への対応。",
       "targets": [

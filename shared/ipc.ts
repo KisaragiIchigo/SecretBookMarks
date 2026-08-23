@@ -75,4 +75,5 @@ export const IPC_EVENT = {
   downloadChanged: 'event:download-changed',
   browserOpenUrl: 'event:browser-open-url',
   browserCapturePage: 'event:browser-capture-page',
+  browserNavigate: 'event:browser-navigate',
 } as const

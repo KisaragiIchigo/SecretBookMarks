@@ -71,6 +71,16 @@ export function Browser({ visible, homeUrl, onBookmarkPage }: BrowserProps) {
 
   const activeView = activeId ? views.current.get(activeId) : undefined
 
+  // マウスのサイドボタン。Main から届いた方向をアクティブなタブへ流す。
+  useEffect(() => {
+    return window.sbm.events.onBrowserNavigate((direction) => {
+      const view = activeId ? views.current.get(activeId) : undefined
+      if (!view) return
+      if (direction === 'back') view.goBack()
+      else view.goForward()
+    })
+  }, [activeId])
+
   const navigate = (event: FormEvent) => {
     event.preventDefault()
     const url = toNavigationUrl(draftUrl)

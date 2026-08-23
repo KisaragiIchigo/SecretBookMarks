@@ -1,12 +1,17 @@
-import { Menu, app, clipboard, shell, type ContextMenuParams, type WebContents } from 'electron'
+import { Menu, app, clipboard, ipcMain, shell, type ContextMenuParams, type WebContents } from 'electron'
+import { join } from 'node:path'
 import { IPC_EVENT } from '@shared/ipc'
 import { downloads } from '../download/manager'
 import { emitToRenderer, getMainWindow } from '../window'
 import { clearMediaFor, mediaCandidates } from './mediaSniffer'
+import { browserSession } from './session'
 
 const BROWSER_PARTITION = 'sbm-browser'
 
-/** Shift を押しているかは右クリックの params に来ないので、キー入力から自前で追う。 */
+/**
+ * Shift の状態は context-menu の params に載らない。
+ * 各フレームへ差し込んだガードが、右クリックの瞬間に修飾キーを送ってくるので、それを保持する。
+ */
 const shiftHeld = new WeakMap<WebContents, boolean>()
 
 function isStream(url: string): boolean {
@@ -109,6 +114,21 @@ function buildContextMenu(contents: WebContents, params: ContextMenuParams): Men
  * webview の重なり順を気にせずに済むため。
  */
 export function registerWebviewBridge(): void {
+  // ページ側の右クリック禁止を Shift で無効化するためのガードを全フレームへ差し込む。
+  try {
+    browserSession().registerPreloadScript({
+      id: 'sbm-webview-guard',
+      type: 'frame',
+      filePath: join(__dirname, '..', 'preload', 'webview-guard.cjs'),
+    })
+  } catch (error) {
+    console.warn('[browser] ガードの登録に失敗しました:', (error as Error).message)
+  }
+
+  ipcMain.on('sbm:context-modifiers', (event, payload: { shift?: boolean }) => {
+    shiftHeld.set(event.sender, payload?.shift === true)
+  })
+
   const window = getMainWindow()
   window?.webContents.on('will-attach-webview', (_event, webPreferences) => {
     // Renderer 側の指定に関わらず、危険な設定は付けさせない。
@@ -124,11 +144,6 @@ export function registerWebviewBridge(): void {
     contents.setWindowOpenHandler(({ url }) => {
       if (/^https?:\/\//i.test(url)) emitToRenderer(IPC_EVENT.browserOpenUrl, url)
       return { action: 'deny' }
-    })
-
-    contents.on('before-input-event', (_inputEvent, input) => {
-      if (input.type === 'keyDown') shiftHeld.set(contents, input.shift)
-      else if (input.type === 'keyUp' && input.key === 'Shift') shiftHeld.set(contents, false)
     })
 
     contents.on('did-start-navigation', (details) => {

@@ -57,7 +57,7 @@ const api = {
     setFavorite: (ids: string[], favorite: boolean) => call<number>(IPC.bookmarksSetFavorite, { ids, favorite }),
     setGroup: (ids: string[], group: string) => call<number>(IPC.bookmarksSetGroup, { ids, group }),
     renameTag: (from: string, to: string) => call<number>(IPC.bookmarksRenameTag, { from, to }),
-    open: (id: string) => call<Bookmark | null>(IPC.bookmarksOpen, { id }),
+    open: (id: string, external = false) => call<Bookmark | null>(IPC.bookmarksOpen, { id, external }),
     checkLinks: (ids: string[]) =>
       call<{ id: string; linkStatus: LinkStatus | null }[]>(IPC.bookmarksCheckLinks, { ids }),
   },
@@ -135,6 +135,8 @@ const api = {
     onBrowserOpenUrl: (listener: (url: string) => void) => subscribe(IPC_EVENT.browserOpenUrl, listener),
     onBrowserCapturePage: (listener: (payload: { url: string; title: string }) => void) =>
       subscribe(IPC_EVENT.browserCapturePage, listener),
+    onBrowserNavigate: (listener: (direction: 'back' | 'forward') => void) =>
+      subscribe(IPC_EVENT.browserNavigate, listener),
   },
 }
 

@@ -46,7 +46,7 @@ interface VaultContextValue {
     setFavorite: (ids: string[], favorite: boolean) => Promise<number>
     setGroup: (ids: string[], group: string) => Promise<number>
     renameTag: (from: string, to: string) => Promise<number>
-    open: (id: string) => Promise<void>
+    open: (id: string, external?: boolean) => Promise<void>
     checkLinks: (ids: string[]) => Promise<number>
   }
 }
@@ -190,8 +190,8 @@ export function VaultProvider({ children }: { children: ReactNode }) {
         await refresh()
         return count
       },
-      open: async (id) => {
-        await window.sbm.bookmarks.open(id)
+      open: async (id, external = false) => {
+        await window.sbm.bookmarks.open(id, external)
         await refresh()
       },
       checkLinks: async (ids) => {

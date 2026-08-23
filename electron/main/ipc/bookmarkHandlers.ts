@@ -79,11 +79,12 @@ export function registerBookmarkHandlers(): void {
   register(IPC.bookmarksSetGroup, setGroupSchema, ({ ids, group }) => setGroup(ids, group))
   register(IPC.bookmarksRenameTag, renameTagSchema, ({ from, to }) => renameTag(from, to))
 
-  register(IPC.bookmarksOpen, openBookmarkSchema, async ({ id }) => {
+  register(IPC.bookmarksOpen, openBookmarkSchema, async ({ id, external }) => {
     const bookmark = findById(id)
     if (!bookmark) throw new Error('対象のブックマークが見つかりません。')
     if (!/^https?:\/\//i.test(bookmark.url)) throw new Error('http(s) 以外の URL は開けません。')
-    await shell.openExternal(bookmark.url)
+    // 既定では内蔵ブラウザで開く。Renderer 側がタブを用意するので、ここでは記録だけ行う。
+    if (external) await shell.openExternal(bookmark.url)
     return registerOpen(id)
   })
 

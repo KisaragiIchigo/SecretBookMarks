@@ -11,7 +11,7 @@ import { useVault } from '@/state/VaultProvider'
 
 export default function App() {
   const { phase, settings, vaultPath, updateSettings, lock } = useVault()
-  const { activeDownloadCount } = useBrowser()
+  const { activeDownloadCount, openTab } = useBrowser()
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [downloadsOpen, setDownloadsOpen] = useState(false)
   const [mode, setMode] = useState<AppMode>('library')
@@ -35,7 +35,15 @@ export default function App() {
             <Loader2 className="h-5 w-5 animate-spin text-teal-300" />
           </div>
         ) : unlocked && settings ? (
-          <Workspace settings={settings} mode={mode} onOpenSettings={() => setSettingsOpen(true)} />
+          <Workspace
+            settings={settings}
+            mode={mode}
+            onOpenSettings={() => setSettingsOpen(true)}
+            onNavigate={(url) => {
+              openTab(url)
+              setMode('browser')
+            }}
+          />
         ) : (
           <UnlockGate />
         )}

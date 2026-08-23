@@ -61,6 +61,18 @@ export function createMainWindow(): BrowserWindow {
   if (settings.window.maximized) window.maximize()
 
   window.once('ready-to-show', () => window.show())
+  // マウスのサイドボタンは WM_APPCOMMAND として届く。webview 側では拾えないため、
+  // ウィンドウで受けて Renderer（アクティブなタブを知っている）へ回す。
+  window.on('app-command', (event, command) => {
+    if (command === 'browser-backward') {
+      emitToRenderer(IPC_EVENT.browserNavigate, 'back')
+      event.preventDefault()
+    } else if (command === 'browser-forward') {
+      emitToRenderer(IPC_EVENT.browserNavigate, 'forward')
+      event.preventDefault()
+    }
+  })
+
   window.on('maximize', () => emitToRenderer(IPC_EVENT.maximizeChanged, true))
   window.on('unmaximize', () => emitToRenderer(IPC_EVENT.maximizeChanged, false))
   window.on('resize', () => persistGeometry(window))

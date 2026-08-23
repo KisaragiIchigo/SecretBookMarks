@@ -49,6 +49,7 @@ export const baseOptions = {
 export const entries = [
   { entryPoints: [`${root}electron/main/index.ts`], outfile: `${root}dist/main/index.cjs` },
   { entryPoints: [`${root}electron/preload/index.ts`], outfile: `${root}dist/preload/index.cjs` },
+  { entryPoints: [`${root}electron/preload/webviewGuard.ts`], outfile: `${root}dist/preload/webview-guard.cjs` },
 ]
 
 // 直接実行されたときだけビルドする（dev.mjs からは設定だけを import する）。
