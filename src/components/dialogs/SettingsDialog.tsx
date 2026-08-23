@@ -109,6 +109,12 @@ export function SettingsDialog({ open, settings, vaultPath, onClose, onChange }:
               onChange={(checked) => void onChange({ inheritDomainTags: checked })}
             />
             <SwitchRow
+              label="ページからタグを自動で付ける"
+              description="ページのキーワード情報から最大3件を選び、確認なしでタグとして入力します。既に使っているタグを優先します。"
+              checked={settings.autoTagFromPage}
+              onChange={(checked) => void onChange({ autoTagFromPage: checked })}
+            />
+            <SwitchRow
               label="閉じるボタンでトレイに常駐"
               description="ウィンドウを閉じても常駐し、クリップボード監視を続けます。"
               checked={settings.minimizeToTray}

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Download, Star } from 'lucide-react'
+import { Download, Sparkles, Star } from 'lucide-react'
 import { isHttpUrl, extractDomain } from '@shared/url'
 import { Button } from '@/components/ui/Button'
 import { Field, Input, Textarea } from '@/components/ui/Input'
@@ -7,7 +7,7 @@ import { Modal } from '@/components/ui/Modal'
 import { TagInput } from '@/components/ui/TagInput'
 import { TagSuggestions } from '@/components/ui/TagSuggestions'
 import { cn } from '@/lib/cn'
-import { buildSuggestions, completeTag, inheritedDomainTags } from '@/lib/tagSuggest'
+import { autoTagsFromPage, buildSuggestions, completeTag, inheritedDomainTags } from '@/lib/tagSuggest'
 import type { CaptureDraft } from '@/hooks/useCaptureFlow'
 import { useVault } from '@/state/VaultProvider'
 
@@ -21,31 +21,71 @@ export function CaptureDialog({ draft, onClose, onSubmit }: CaptureDialogProps) 
   const { bookmarks, settings } = useVault()
   const [form, setForm] = useState<CaptureDraft | null>(draft)
   const [keywords, setKeywords] = useState<string[]>([])
+  const [autoApplied, setAutoApplied] = useState<string[]>([])
   const [fetching, setFetching] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const autoFetchedRef = useRef<string | null>(null)
+  // 取得は非同期なので、完了時点の最新の入力内容を ref で見る。
+  const formRef = useRef<CaptureDraft | null>(draft)
+
+  useEffect(() => {
+    formRef.current = form
+  }, [form])
 
   useEffect(() => {
     setForm(draft)
     setKeywords([])
+    setAutoApplied([])
     setError(null)
     autoFetchedRef.current = null
   }, [draft])
 
-  const fetchMeta = useCallback(async (url: string) => {
-    if (!isHttpUrl(url)) return
-    setFetching(true)
-    try {
-      const meta = await window.sbm.meta.fetchPage(url)
-      setKeywords(meta.keywords)
-      if (meta.title) setForm((current) => (current ? { ...current, title: meta.title as string } : current))
-    } catch {
-      // タイトル取得の失敗は致命的ではないので、URL のまま保存させる。
-    } finally {
-      setFetching(false)
-    }
-  }, [])
+  const fetchMeta = useCallback(
+    async (url: string) => {
+      if (!isHttpUrl(url)) return
+      setFetching(true)
+      try {
+        const meta = await window.sbm.meta.fetchPage(url)
+        setKeywords(meta.keywords)
+
+        const current = formRef.current
+        if (!current) return
+        const next: CaptureDraft = { ...current, title: meta.title ?? current.title }
+
+        // 自動付与は新規追加のときだけ。編集中の項目へ勝手にタグを増やさない。
+        if (current.id === null) {
+          const pageDomain = extractDomain(next.url)
+          const added: string[] = []
+
+          if ((settings?.inheritDomainTags ?? true) && next.tags.length === 0) {
+            added.push(...inheritedDomainTags(bookmarks, pageDomain))
+          }
+          if (settings?.autoTagFromPage ?? true) {
+            added.push(
+              ...autoTagsFromPage({
+                keywords: meta.keywords,
+                current: [...next.tags, ...added],
+                bookmarks,
+                domain: pageDomain,
+              }),
+            )
+          }
+
+          if (added.length > 0) {
+            next.tags = [...next.tags, ...added]
+            setAutoApplied(added)
+          }
+        }
+        setForm(next)
+      } catch {
+        // タイトル取得の失敗は致命的ではないので、URL のまま保存させる。
+      } finally {
+        setFetching(false)
+      }
+    },
+    [bookmarks, settings],
+  )
 
   // クリップボード取り込みのように URL だけ埋まって開いた場合は、その場でタイトルとタグ候補を引く。
   useEffect(() => {
@@ -77,7 +117,10 @@ export function CaptureDialog({ draft, onClose, onSubmit }: CaptureDialogProps) 
     if (isEdit || form.tags.length > 0 || !urlValid) return
     if (!(settings?.inheritDomainTags ?? true)) return
     const inherited = inheritedDomainTags(bookmarks, extractDomain(form.url))
-    if (inherited.length > 0) setForm({ ...form, tags: inherited })
+    if (inherited.length > 0) {
+      setForm({ ...form, tags: inherited })
+      setAutoApplied(inherited)
+    }
   }
 
   const submit = async () => {
@@ -164,6 +207,15 @@ export function CaptureDialog({ draft, onClose, onSubmit }: CaptureDialogProps) 
               getCompletions={getCompletions}
               placeholder="Enter またはカンマで確定します"
             />
+            {autoApplied.length > 0 ? (
+              <p className="flex items-start gap-1.5 text-xs text-teal-300">
+                <Sparkles className="mt-0.5 h-3 w-3 shrink-0" />
+                <span>
+                  <span className="font-medium">{autoApplied.join('、')}</span>{' '}
+                  を自動で付けました。不要なタグは × で外せます。
+                </span>
+              </p>
+            ) : null}
             <TagSuggestions
               suggestions={suggestions}
               onPick={(tag) => setForm({ ...form, tags: [...form.tags, tag] })}

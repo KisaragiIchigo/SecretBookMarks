@@ -16,6 +16,7 @@ const settingsSchema = z.object({
   fetchTitles: z.boolean().default(true),
   fetchFavicons: z.boolean().default(true),
   inheritDomainTags: z.boolean().default(true),
+  autoTagFromPage: z.boolean().default(true),
   minimizeToTray: z.boolean().default(true),
   sortMode: z
     .enum(['added-desc', 'added-asc', 'title-asc', 'title-desc', 'opened-desc', 'opencount-desc', 'updated-desc'])

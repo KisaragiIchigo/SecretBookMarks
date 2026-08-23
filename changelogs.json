@@ -3,6 +3,31 @@
   "description": "変更履歴。AI が再利用しやすいよう、日時・対象ファイル・変更概要・目的・影響範囲・懸念点を各エントリに記録する。",
   "entries": [
     {
+      "date": "2026-08-23",
+      "summary": "タグ候補のクリック操作を不要にし、根拠のあるタグだけを自動付与するようにした",
+      "purpose": "候補チップを毎回クリックするのが手間だったため。取り込み時にタグ入力の操作をゼロにする。",
+      "targets": [
+        "src/lib/tagSuggest.ts",
+        "src/components/dialogs/CaptureDialog.tsx",
+        "src/components/dialogs/SettingsDialog.tsx",
+        "electron/main/settings.ts / shared/types.ts",
+        "README.md"
+      ],
+      "changes": [
+        "autoTagsFromPage を追加。ページ由来キーワードから、数字のみ・URL 断片・3単語以上の見出し断片・2文字未満・16文字超・ドメイン名と一致する語を除外し、最大3件を自動付与する。",
+        "既にライブラリで使われているタグを優先して選ぶ。ユーザーの語彙に無い語を勝手に増やさないため。",
+        "取得（自動・手動どちらも）の完了時に、同ドメインの引き継ぎタグとページ由来タグをまとめて入力欄へ反映する。",
+        "自動付与した内容をダイアログ上に明示し、その場で外せるようにした。",
+        "設定に autoTagFromPage を追加（既定 ON）。",
+        "非同期取得の完了時に最新の入力内容を参照するため formRef を導入。setForm の更新関数内で別の setState を呼ぶ実装をやめた（StrictMode で二重実行されるため）。"
+      ],
+      "impact": "編集ダイアログでは自動付与しない（新規追加のみ）。汎用的な人気タグは従来どおり候補チップのまま。",
+      "concerns": [
+        "meta keywords を持たないサイトでは自動付与が働かず、同ドメイン実績のみになる。",
+        "キーワードの品質はサイト依存のため、意図しない語が入ることはある。設定で無効化できる。"
+      ]
+    },
+    {
       "date": "2026-08-07",
       "summary": "タグ入力の省力化、ツールバーの折り返し破綻の修正、データ保存先の整理を行った",
       "purpose": "実利用で挙がった3点（タグ付けが面倒 / 狭い幅でボタンが2行に割れる / 保存先が散らかっている）を解消するため。",
@@ -35,7 +60,11 @@
       "date": "2026-08-07",
       "summary": "起動.bat と makeexe.bat を追加し、README にかんたん起動の節を追記した",
       "purpose": "コマンド操作なしで起動と exe 生成ができるようにするため（旧版の !exe化呪文.txt に相当する導線の置き換え）。",
-      "targets": ["起動.bat", "makeexe.bat", "README.md"],
+      "targets": [
+        "起動.bat",
+        "makeexe.bat",
+        "README.md"
+      ],
       "changes": [
         "起動.bat: node_modules と dist/main/index.cjs の有無を見て、必要なときだけ npm install / npm run build を実行してから electron.exe を起動する。",
         "makeexe.bat: 依存を揃えたうえで npm run dist を実行し、完了後に release フォルダーを開く。",

@@ -108,3 +108,61 @@ export function completeTag(input: string, bookmarks: Bookmark[], current: strin
     .slice(0, COMPLETION_LIMIT)
     .map((entry) => entry.tag)
 }
+
+const AUTO_TAG_LIMIT = 3
+const AUTO_TAG_MIN_LENGTH = 2
+const AUTO_TAG_MAX_LENGTH = 16
+
+/** タグとして使い物にならない語を落とす。数字だけ・URL 断片・長い文章を弾く。 */
+function isUsableAsTag(value: string): boolean {
+  if (value.length < AUTO_TAG_MIN_LENGTH || value.length > AUTO_TAG_MAX_LENGTH) return false
+  if (/^\d+$/.test(value)) return false
+  if (/[/:?#@<>"'|]/.test(value)) return false
+  // 単語が3つ以上並ぶものは見出し文の切れ端であることが多い。
+  if (value.split(/\s+/).length > 2) return false
+  return true
+}
+
+/** ドメイン名そのもの（example.com / example）はグループで表現済みなので自動付与しない。 */
+function matchesDomain(value: string, domain: string): boolean {
+  if (!domain) return false
+  const needle = value.toLowerCase()
+  const labels = domain.toLowerCase().split('.')
+  return needle === domain.toLowerCase() || labels.includes(needle)
+}
+
+/**
+ * ページ由来のキーワードから、確認なしで付けてよいタグだけを選ぶ。
+ * 「すでに自分が使っているタグ」を最優先にするのは、ユーザーの語彙に無い語を勝手に増やさないため。
+ * 汎用的な人気タグ（library 由来）はここでは扱わない——そのページとの関係が無く、
+ * 自動付与すると全ブックマークが同じタグで埋まってしまう。
+ */
+export function autoTagsFromPage(params: {
+  keywords: string[]
+  current: string[]
+  bookmarks: Bookmark[]
+  domain: string
+  limit?: number
+}): string[] {
+  const known = new Set<string>()
+  for (const bookmark of params.bookmarks) {
+    if (bookmark.deletedAt !== null) continue
+    for (const tag of bookmark.tags) known.add(tag.toLowerCase())
+  }
+
+  const used = new Set(params.current.map((t) => t.toLowerCase()))
+  const picked: { tag: string; score: number }[] = []
+
+  for (const raw of params.keywords) {
+    const tag = raw.trim()
+    const key = tag.toLowerCase()
+    if (!tag || used.has(key) || picked.some((p) => p.tag.toLowerCase() === key)) continue
+    if (!isUsableAsTag(tag) || matchesDomain(tag, params.domain)) continue
+    picked.push({ tag, score: known.has(key) ? 2 : 1 })
+  }
+
+  return picked
+    .sort((a, b) => b.score - a.score)
+    .slice(0, params.limit ?? AUTO_TAG_LIMIT)
+    .map((entry) => entry.tag)
+}
