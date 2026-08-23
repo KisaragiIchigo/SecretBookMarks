@@ -4,6 +4,31 @@
   "entries": [
     {
       "date": "2026-08-23",
+      "summary": "動画サイトで保存できない3つの原因を特定して修正した（検出漏れ・iframe・ホットリンク防止）",
+      "purpose": "実在の動画サイトで検出も保存もできない、という報告への対応。",
+      "targets": [
+        "electron/main/browser/mediaSniffer.ts",
+        "electron/main/browser/domScanner.ts（新規）",
+        "electron/main/download/manager.ts",
+        "electron/main/ipc/browserHandlers.ts / shared/ipc.ts / electron/preload/index.ts",
+        "src/components/Browser/index.tsx / MediaPanel.tsx",
+        "README.md"
+      ],
+      "changes": [
+        "検出タイミングを onCompleted から onResponseStarted 主体へ変更。動画は本文が長く、視聴を止めると完了イベントが発火しないまま終わるため、完了待ちでは一覧に出てこなかった。",
+        "resourceType === 'media' を肯定的な判定材料に追加。拡張子なし・content-type が application/octet-stream という配信を検出できるようになった。",
+        "HLS の断片（seg001.ts 等）を候補から除外し、確度の高いものを上に並べるようにした。",
+        "domScanner を追加。iframe を含む全フレームで video / audio / source / og:video を走査する。検出パネルを開いた時点で自動実行し、更新ボタンでも再実行できる。",
+        "直リンクのダウンロードを DownloadItem から fetch 実装へ置き換えた。Chromium の downloadURL は Referer の指定を受け付けず（headers 経由も onBeforeSendHeaders 経由も落とされることを実測で確認）、ホットリンク防止のあるサイトで 403 になっていた。fetch なら Referer・User-Agent・Cookie を完全に制御できる。"
+      ],
+      "impact": "直リンク保存の進捗は content-length から自前で算出する。content-length を返さないサーバーでは進捗が不定になるが、保存自体は行われる。",
+      "concerns": [
+        "MSE / blob で組み立てる動画は引き続き保存できない。",
+        "実サイトでの確認は未実施。ホットリンク防止・iframe 埋め込み・拡張子なし配信を再現したローカルサーバーに対する自動テストは通っている。"
+      ]
+    },
+    {
+      "date": "2026-08-23",
       "summary": "動画の「名前を付けて保存」と、9種類のフィルターによる広告ブロックを追加。Electron を 43 へ更新",
       "purpose": "保存先を都度選べるようにすることと、内蔵ブラウザでの広告・トラッカーの遮断のため。",
       "targets": [

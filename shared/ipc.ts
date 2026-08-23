@@ -36,6 +36,7 @@ export const IPC = {
 
   browserMediaList: 'browser:media-list',
   browserMediaClear: 'browser:media-clear',
+  browserScanPage: 'browser:scan-page',
   browserClearData: 'browser:clear-data',
   adblockStatus: 'adblock:status',
   adblockSetEnabled: 'adblock:set-enabled',

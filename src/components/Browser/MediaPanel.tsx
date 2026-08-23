@@ -1,4 +1,4 @@
-import { Download, Film, PenLine, Radio, X } from 'lucide-react'
+import { Download, Film, PenLine, Radio, RefreshCw, X } from 'lucide-react'
 import type { MediaCandidate } from '@shared/types'
 import { Button } from '@/components/ui/Button'
 import { IconButton } from '@/components/ui/IconButton'
@@ -9,7 +9,9 @@ export interface MediaPanelProps {
   candidates: MediaCandidate[]
   pageUrl: string
   ffmpegAvailable: boolean
+  scanning: boolean
   onClose: () => void
+  onRescan: () => void
   onSave: (candidate: MediaCandidate, saveAs: boolean) => void
 }
 
@@ -20,20 +22,34 @@ function formatSize(bytes: number | null): string {
 }
 
 /** ページ読み込み中に捕まえたメディアの一覧。右クリックで拾えない動画はここから保存する。 */
-export function MediaPanel({ candidates, pageUrl, ffmpegAvailable, onClose, onSave }: MediaPanelProps) {
+export function MediaPanel({
+  candidates,
+  pageUrl,
+  ffmpegAvailable,
+  scanning,
+  onClose,
+  onRescan,
+  onSave,
+}: MediaPanelProps) {
   return (
     <aside className="flex w-96 shrink-0 flex-col border-l border-white/[0.06] bg-ink-900/95">
       <header className="flex items-center gap-2 border-b border-white/[0.06] px-3 py-2.5">
         <Film className="h-4 w-4 text-teal-300" />
         <span className="label-caps flex-1">detected media</span>
         <span className="font-mono text-xs text-slate-400">{formatCount(candidates.length)}</span>
+        <IconButton
+          label="ページを調べ直す"
+          icon={<RefreshCw className={cn('h-3.5 w-3.5', scanning && 'animate-spin')} />}
+          onClick={onRescan}
+          disabled={scanning}
+        />
         <IconButton label="閉じる" icon={<X className="h-3.5 w-3.5" />} onClick={onClose} />
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-2">
         {candidates.length === 0 ? (
           <p className="px-2 py-6 text-center text-xs text-slate-400">
-            まだ何も見つかっていません。動画を再生すると、読み込まれたファイルがここに並びます。
+            まだ何も見つかっていません。動画を再生してから、上の更新ボタンでページを調べ直してください。
           </p>
         ) : (
           candidates.map((candidate) => {

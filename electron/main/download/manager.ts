@@ -1,8 +1,8 @@
-import { app, dialog, shell, type DownloadItem } from 'electron'
+import { app, dialog, shell } from 'electron'
 import { spawn, type ChildProcess } from 'node:child_process'
 import { EventEmitter } from 'node:events'
 import { randomUUID } from 'node:crypto'
-import { existsSync, mkdirSync } from 'node:fs'
+import { createWriteStream, existsSync, mkdirSync } from 'node:fs'
 import { basename, dirname, extname, join } from 'node:path'
 import type { DownloadTask } from '@shared/types'
 import { loadSettings, saveSettings } from '../settings'
@@ -63,23 +63,18 @@ function guessFileName(url: string, fallbackExt: string): string {
 
 /**
  * ダウンロードの実行と履歴を持つ。
- * 直リンクは Electron の DownloadItem、HLS / DASH は ffmpeg の子プロセスで処理する。
+ * 直リンクは fetch で自前に取得し、HLS / DASH は ffmpeg の子プロセスで処理する。
  * 実行中の進捗は主記憶だけで扱い、確定した結果のみヴォールトへ書く（保存の連打を避けるため）。
  */
 class DownloadManager extends EventEmitter {
   private live = new Map<string, DownloadTask>()
-  private items = new Map<string, DownloadItem>()
   private processes = new Map<string, ChildProcess>()
-  private pendingByUrl = new Map<string, string>()
+  private controllers = new Map<string, AbortController>()
   private lastEmit = new Map<string, number>()
 
   init(): void {
-    browserSession().on('will-download', (_event, item) => {
-      const taskId = this.pendingByUrl.get(item.getURL())
-      if (!taskId) return
-      this.pendingByUrl.delete(item.getURL())
-      this.attachItem(taskId, item)
-    })
+    // 直リンクは fetch で自前に取得する（Referer を確実に送るため）。
+    // ページ側が始めたダウンロードは Electron の既定動作に任せる。
   }
 
   downloadDir(): string {
@@ -107,7 +102,11 @@ class DownloadManager extends EventEmitter {
   }
 
   cancel(id: string): void {
-    this.items.get(id)?.cancel()
+    const controller = this.controllers.get(id)
+    if (controller) {
+      this.controllers.delete(id)
+      controller.abort()
+    }
     const proc = this.processes.get(id)
     if (proc) {
       this.processes.delete(id)
@@ -149,7 +148,7 @@ class DownloadManager extends EventEmitter {
     this.live.set(task.id, task)
     this.emitChange(task, true)
 
-    if (input.kind === 'file') this.startFile(task)
+    if (input.kind === 'file') void this.startFile(task)
     else await this.startStream(task)
     return task
   }
@@ -176,32 +175,72 @@ class DownloadManager extends EventEmitter {
     return result.filePath
   }
 
-  private startFile(task: DownloadTask): void {
-    this.pendingByUrl.set(task.url, task.id)
-    browserSession().downloadURL(task.url)
-  }
+  /**
+   * 直リンクの取得。
+   * Chromium の downloadURL は Referer の指定を受け付けない（発信元から自動で決まるため、
+   * headers に入れても onBeforeSendHeaders で差し込んでも落とされる）。
+   * ホットリンク防止のあるサイトでは、ページ内で再生できるのに保存だけ 403 になる。
+   * そのため自前で取得し、ヘッダーを完全に制御する。
+   */
+  private async startFile(task: DownloadTask): Promise<void> {
+    const controller = new AbortController()
+    this.controllers.set(task.id, controller)
 
-  private attachItem(taskId: string, item: DownloadItem): void {
-    const task = this.live.get(taskId)
-    if (!task) return
-    item.setSavePath(task.savePath)
-    this.items.set(taskId, item)
-    task.totalBytes = item.getTotalBytes()
+    try {
+      const referer = task.pageUrl || task.url
+      const cookies = await browserSession()
+        .cookies.get({ url: task.url })
+        .catch(() => [])
+      const cookieHeader = cookies.map((cookie) => `${cookie.name}=${cookie.value}`).join('; ')
 
-    item.on('updated', (_event, state) => {
-      if (state === 'interrupted') return
-      task.receivedBytes = item.getReceivedBytes()
-      task.totalBytes = item.getTotalBytes()
-      task.progress = task.totalBytes > 0 ? task.receivedBytes / task.totalBytes : null
-      this.emitChange(task)
-    })
+      const response = await fetch(task.url, {
+        signal: controller.signal,
+        redirect: 'follow',
+        headers: {
+          'User-Agent': STREAM_USER_AGENT,
+          Referer: referer,
+          Accept: '*/*',
+          ...(cookieHeader ? { Cookie: cookieHeader } : {}),
+        },
+      })
 
-    item.once('done', (_event, state) => {
-      this.items.delete(taskId)
-      if (state === 'completed') this.finish(taskId, 'completed', null)
-      else if (state === 'cancelled') this.finish(taskId, 'canceled', 'キャンセルしました。')
-      else this.finish(taskId, 'failed', 'ダウンロードが中断されました。')
-    })
+      if (!response.ok || !response.body) {
+        this.finish(task.id, 'failed', `サーバーが ${response.status} を返しました。`)
+        return
+      }
+
+      const total = Number(response.headers.get('content-length') ?? '0')
+      task.totalBytes = Number.isFinite(total) ? total : 0
+
+      const file = createWriteStream(task.savePath)
+      const reader = response.body.getReader()
+      let received = 0
+
+      for (;;) {
+        const { done, value } = await reader.read()
+        if (done) break
+        if (value) {
+          received += value.byteLength
+          task.receivedBytes = received
+          task.progress = task.totalBytes > 0 ? received / task.totalBytes : null
+          this.emitChange(task)
+          if (!file.write(Buffer.from(value))) {
+            await new Promise<void>((resolve) => file.once('drain', () => resolve()))
+          }
+        }
+      }
+      await new Promise<void>((resolve, reject) => {
+        file.end(() => resolve())
+        file.on('error', reject)
+      })
+
+      this.finish(task.id, 'completed', null)
+    } catch (error) {
+      if (controller.signal.aborted) this.finish(task.id, 'canceled', 'キャンセルしました。')
+      else this.finish(task.id, 'failed', error instanceof Error ? error.message : String(error))
+    } finally {
+      this.controllers.delete(task.id)
+    }
   }
 
   private async startStream(task: DownloadTask): Promise<void> {

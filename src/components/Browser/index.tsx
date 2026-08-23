@@ -42,6 +42,7 @@ export function Browser({ visible, homeUrl, onBookmarkPage }: BrowserProps) {
   const [editing, setEditing] = useState(false)
   const [panelOpen, setPanelOpen] = useState(false)
   const [ffmpegAvailable, setFfmpegAvailable] = useState(true)
+  const [scanning, setScanning] = useState(false)
 
   const candidates = mediaFor(active?.contentsId ?? null)
 
@@ -77,6 +78,23 @@ export function Browser({ visible, homeUrl, onBookmarkPage }: BrowserProps) {
     setEditing(false)
     void activeView.loadURL(url)
   }
+
+  // ページ内の video 要素を直接読む。通信の監視で取りこぼした URL を拾うための保険。
+  const rescan = useCallback(async () => {
+    const contentsId = active?.contentsId
+    if (contentsId === undefined || contentsId === null) return
+    setScanning(true)
+    try {
+      await window.sbm.browser.scanPage(contentsId)
+    } finally {
+      setScanning(false)
+    }
+  }, [active?.contentsId])
+
+  // パネルを開いた時点で一度自動で走らせる。
+  useEffect(() => {
+    if (panelOpen) void rescan()
+  }, [panelOpen, rescan])
 
   const saveMedia = (candidate: MediaCandidate, saveAs: boolean) => {
     void window.sbm.downloads.start({
@@ -208,7 +226,9 @@ export function Browser({ visible, homeUrl, onBookmarkPage }: BrowserProps) {
             candidates={candidates}
             pageUrl={active?.url ?? ''}
             ffmpegAvailable={ffmpegAvailable}
+            scanning={scanning}
             onClose={() => setPanelOpen(false)}
+            onRescan={() => void rescan()}
             onSave={saveMedia}
           />
         ) : null}

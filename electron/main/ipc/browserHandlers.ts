@@ -4,6 +4,7 @@ import type { AdblockStatusView, AppSettings, DownloadTask, FilterListInfo, Medi
 import { FILTER_LISTS, adblockStatus, setAdblockEnabled, updateFilters } from '../browser/adblock'
 import { clearBrowserData } from '../browser/session'
 import { clearMediaFor, mediaCandidates } from '../browser/mediaSniffer'
+import { scanPageMedia } from '../browser/domScanner'
 import { downloads } from '../download/manager'
 import { ffmpegStatus } from '../download/ffmpeg'
 import { saveSettings } from '../settings'
@@ -14,6 +15,10 @@ import { adblockToggleSchema, contentsIdSchema, downloadIdSchema, startDownloadS
 export function registerBrowserHandlers(): void {
   register(IPC.browserMediaList, contentsIdSchema, ({ contentsId }): MediaCandidate[] =>
     mediaCandidates(contentsId),
+  )
+
+  register(IPC.browserScanPage, contentsIdSchema, ({ contentsId }): Promise<MediaCandidate[]> =>
+    scanPageMedia(contentsId),
   )
 
   register(IPC.browserMediaClear, contentsIdSchema, ({ contentsId }) => {
