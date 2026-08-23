@@ -4,6 +4,31 @@
   "entries": [
     {
       "date": "2026-08-23",
+      "summary": "タグの自動付与を「そのページ由来のみ」に限定し、タグ一覧を名前の昇順へ変更した",
+      "purpose": "同じドメインの他のブックマークからタグを引き継ぐ挙動が「継ぎ足し」になっており、そのページ自身のタグが欲しいという要望と逆方向だったため。",
+      "targets": [
+        "src/lib/tagSuggest.ts",
+        "src/lib/library.ts",
+        "src/hooks/useCaptureFlow.ts",
+        "src/components/dialogs/CaptureDialog.tsx",
+        "src/components/dialogs/SettingsDialog.tsx",
+        "electron/main/settings.ts / shared/types.ts",
+        "README.md"
+      ],
+      "changes": [
+        "inheritedDomainTags と設定 inheritDomainTags を削除。ダイアログを開いた時点および取得完了時のドメイン引き継ぎを全廃した。",
+        "自動付与の対象をページ由来キーワードのみに限定し、上限を3件から5件へ引き上げた（唯一の供給源になるため）。",
+        "同じサイトで使用中のタグは、クリックで付ける候補チップとしては残す。自動では入らない。",
+        "URL を手入力して確定（blur）したときに、引き継ぎではなくページ情報の取得を行うようにした。",
+        "サイドバーのタグ一覧を、使用回数の降順からタグ名の昇順（Intl.Collator ja / numeric）へ変更した。件数の表示は維持。"
+      ],
+      "impact": "保存済み settings.json に残る inheritDomainTags は、Zod の未知キー除去により次回保存時に自動で消える。移行作業は不要。",
+      "concerns": [
+        "meta keywords を持たないサイトでは自動付与が働かない。その場合は候補チップから手動で付ける。"
+      ]
+    },
+    {
+      "date": "2026-08-23",
       "summary": "タグ候補のクリック操作を不要にし、根拠のあるタグだけを自動付与するようにした",
       "purpose": "候補チップを毎回クリックするのが手間だったため。取り込み時にタグ入力の操作をゼロにする。",
       "targets": [

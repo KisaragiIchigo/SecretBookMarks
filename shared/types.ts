@@ -58,8 +58,6 @@ export interface AppSettings {
   fetchTitles: boolean
   /** ドメインのファビコンを取得してヴォールト内にキャッシュする */
   fetchFavicons: boolean
-  /** 同じドメインで使ったタグを、新規追加時に自動で引き継ぐ */
-  inheritDomainTags: boolean
   /** ページから抽出したキーワードを、確認なしでタグとして付ける */
   autoTagFromPage: boolean
   /** 閉じるボタンでタスクトレイに常駐させる */

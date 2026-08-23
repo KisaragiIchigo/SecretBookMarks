@@ -1,9 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { Bookmark, BookmarkInput, DuplicateResolution } from '@shared/types'
 import { dedupeTags } from '@shared/tags'
-import { extractDomain } from '@shared/url'
 import { useToast } from '@/components/ui/Toast'
-import { inheritedDomainTags } from '@/lib/tagSuggest'
 import { useVault } from '@/state/VaultProvider'
 
 export interface CaptureDraft {
@@ -47,20 +45,15 @@ function toInput(draft: CaptureDraft): BookmarkInput {
  * クリップボード検知とグローバルショートカットの受け口もここに集約する。
  */
 export function useCaptureFlow() {
-  const { phase, bookmarks, settings, actions } = useVault()
+  const { phase, actions } = useVault()
   const toast = useToast()
   const [draft, setDraft] = useState<CaptureDraft | null>(null)
   const [duplicate, setDuplicate] = useState<DuplicatePrompt | null>(null)
 
-  // 同じドメインで使い回しているタグは、ダイアログを開いた時点で入れておく。
-  const openAdd = useCallback(
-    (url = '') => {
-      const inherit = settings?.inheritDomainTags ?? true
-      const tags = inherit && url ? inheritedDomainTags(bookmarks, extractDomain(url)) : []
-      setDraft({ ...EMPTY_DRAFT, url, tags })
-    },
-    [bookmarks, settings],
-  )
+  // タグはそのページから取得したものだけを入れる（他のブックマークからは引き継がない）。
+  const openAdd = useCallback((url = '') => {
+    setDraft({ ...EMPTY_DRAFT, url })
+  }, [])
 
   const openEdit = useCallback((bookmark: Bookmark) => {
     setDraft({

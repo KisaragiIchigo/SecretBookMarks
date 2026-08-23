@@ -15,7 +15,6 @@ const settingsSchema = z.object({
   autoLockMinutes: z.number().int().min(0).max(720).default(15),
   fetchTitles: z.boolean().default(true),
   fetchFavicons: z.boolean().default(true),
-  inheritDomainTags: z.boolean().default(true),
   autoTagFromPage: z.boolean().default(true),
   minimizeToTray: z.boolean().default(true),
   sortMode: z

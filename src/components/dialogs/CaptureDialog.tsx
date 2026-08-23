@@ -7,7 +7,7 @@ import { Modal } from '@/components/ui/Modal'
 import { TagInput } from '@/components/ui/TagInput'
 import { TagSuggestions } from '@/components/ui/TagSuggestions'
 import { cn } from '@/lib/cn'
-import { autoTagsFromPage, buildSuggestions, completeTag, inheritedDomainTags } from '@/lib/tagSuggest'
+import { autoTagsFromPage, buildSuggestions, completeTag } from '@/lib/tagSuggest'
 import type { CaptureDraft } from '@/hooks/useCaptureFlow'
 import { useVault } from '@/state/VaultProvider'
 
@@ -54,24 +54,14 @@ export function CaptureDialog({ draft, onClose, onSubmit }: CaptureDialogProps) 
         const next: CaptureDraft = { ...current, title: meta.title ?? current.title }
 
         // 自動付与は新規追加のときだけ。編集中の項目へ勝手にタグを増やさない。
-        if (current.id === null) {
-          const pageDomain = extractDomain(next.url)
-          const added: string[] = []
-
-          if ((settings?.inheritDomainTags ?? true) && next.tags.length === 0) {
-            added.push(...inheritedDomainTags(bookmarks, pageDomain))
-          }
-          if (settings?.autoTagFromPage ?? true) {
-            added.push(
-              ...autoTagsFromPage({
-                keywords: meta.keywords,
-                current: [...next.tags, ...added],
-                bookmarks,
-                domain: pageDomain,
-              }),
-            )
-          }
-
+        // 付けるのはこのページから取得したタグだけで、他のブックマークからは引き継がない。
+        if (current.id === null && (settings?.autoTagFromPage ?? true)) {
+          const added = autoTagsFromPage({
+            keywords: meta.keywords,
+            current: next.tags,
+            bookmarks,
+            domain: extractDomain(next.url),
+          })
           if (added.length > 0) {
             next.tags = [...next.tags, ...added]
             setAutoApplied(added)
@@ -112,15 +102,12 @@ export function CaptureDialog({ draft, onClose, onSubmit }: CaptureDialogProps) 
   const isEdit = form.id !== null
   const urlValid = isHttpUrl(form.url)
 
-  /** 手入力で URL を確定したときも、タグが空なら同ドメインの実績を引き継ぐ。 */
-  const applyUrlDerivedTags = () => {
-    if (isEdit || form.tags.length > 0 || !urlValid) return
-    if (!(settings?.inheritDomainTags ?? true)) return
-    const inherited = inheritedDomainTags(bookmarks, extractDomain(form.url))
-    if (inherited.length > 0) {
-      setForm({ ...form, tags: inherited })
-      setAutoApplied(inherited)
-    }
+  /** URL を手入力した場合も、確定した時点でそのページの情報を取りに行く。 */
+  const fetchOnUrlBlur = () => {
+    if (isEdit || !urlValid) return
+    if (autoFetchedRef.current === form.url) return
+    autoFetchedRef.current = form.url
+    void fetchMeta(form.url)
   }
 
   const submit = async () => {
@@ -171,7 +158,7 @@ export function CaptureDialog({ draft, onClose, onSubmit }: CaptureDialogProps) 
             autoFocus={!form.url}
             value={form.url}
             onChange={(event) => setForm({ ...form, url: event.target.value })}
-            onBlur={applyUrlDerivedTags}
+            onBlur={fetchOnUrlBlur}
             placeholder="https://example.com/article"
             spellCheck={false}
             className="font-mono"

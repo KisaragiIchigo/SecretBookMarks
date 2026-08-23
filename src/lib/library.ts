@@ -102,7 +102,7 @@ export function collectTagCounts(bookmarks: Bookmark[]): TagCount[] {
   }
   return [...counts.values()]
     .map(({ label, count }) => ({ tag: label, count }))
-    .sort((a, b) => b.count - a.count || collator.compare(a.tag, b.tag))
+    .sort((a, b) => collator.compare(a.tag, b.tag))
 }
 
 export interface LibraryCounts {

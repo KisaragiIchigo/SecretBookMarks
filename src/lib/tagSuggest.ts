@@ -41,22 +41,6 @@ export function domainTagRanking(bookmarks: Bookmark[], domain: string): TagSugg
 }
 
 /**
- * 新規追加時に自動で引き継ぐタグ。
- * 同じドメインのブックマークの半数以上に付いているタグだけを採用する。
- * 1件しか無いドメインならそのタグをそのまま引き継ぐ（同じサイトは同じ用途で貯めることが多いため）。
- */
-export function inheritedDomainTags(bookmarks: Bookmark[], domain: string, limit = 5): string[] {
-  if (!domain) return []
-  const sameDomain = bookmarks.filter((b) => b.domain === domain && b.deletedAt === null)
-  if (sameDomain.length === 0) return []
-  const threshold = Math.ceil(sameDomain.length / 2)
-  return toSorted(countTags(sameDomain), 'domain')
-    .filter((entry) => entry.count >= threshold)
-    .slice(0, limit)
-    .map((entry) => entry.tag)
-}
-
-/**
  * タグ候補を3段構えで組み立てる。
  * 1. 同ドメインの実績（いちばん当たる） 2. ページ由来のキーワード 3. よく使うタグ
  * 既に付いているタグは除外し、同じ語が重複して並ばないようにする。
@@ -109,7 +93,7 @@ export function completeTag(input: string, bookmarks: Bookmark[], current: strin
     .map((entry) => entry.tag)
 }
 
-const AUTO_TAG_LIMIT = 3
+const AUTO_TAG_LIMIT = 5
 const AUTO_TAG_MIN_LENGTH = 2
 const AUTO_TAG_MAX_LENGTH = 16
 

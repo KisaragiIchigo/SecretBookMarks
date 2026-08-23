@@ -103,14 +103,8 @@ export function SettingsDialog({ open, settings, vaultPath, onClose, onChange }:
               onChange={(checked) => void onChange({ fetchFavicons: checked })}
             />
             <SwitchRow
-              label="同じサイトのタグを引き継ぐ"
-              description="同じドメインのブックマークの半数以上に付いているタグを、追加時に自動で入力します。"
-              checked={settings.inheritDomainTags}
-              onChange={(checked) => void onChange({ inheritDomainTags: checked })}
-            />
-            <SwitchRow
               label="ページからタグを自動で付ける"
-              description="ページのキーワード情報から最大3件を選び、確認なしでタグとして入力します。既に使っているタグを優先します。"
+              description="そのページのキーワード情報から最大5件を選び、確認なしでタグとして入力します。他のブックマークからタグを引き継ぐことはありません。"
               checked={settings.autoTagFromPage}
               onChange={(checked) => void onChange({ autoTagFromPage: checked })}
             />
