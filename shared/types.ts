@@ -146,7 +146,7 @@ export interface AppSettings {
   adBlockEnabled: boolean
   /** 「名前を付けて保存」で最後に使ったフォルダー */
   lastSaveDir: string | null
-  /** 閉じるボタンでタスクトレイに常駐させる */
+  /** 最小化したときにタスクトレイへ入れる（閉じるボタンは常に終了する） */
   minimizeToTray: boolean
   sortMode: SortMode
   viewMode: ViewMode

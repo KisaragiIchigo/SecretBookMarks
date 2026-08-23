@@ -166,6 +166,28 @@ class DownloadManager extends EventEmitter {
     // ページ側が始めたダウンロードは Electron の既定動作に任せる。
   }
 
+  /**
+   * 終了時の後始末。
+   * ffmpeg は別プロセスなので、明示的に止めないとアプリを閉じたあとも残る。
+   */
+  shutdown(): void {
+    for (const controller of this.controllers.values()) controller.abort()
+    this.controllers.clear()
+    for (const proc of this.processes.values()) {
+      try {
+        proc.kill()
+      } catch {
+        // 既に終了している場合は何もしなくてよい。
+      }
+    }
+    this.processes.clear()
+
+    // 実行中だったものは中断として履歴へ残す。
+    for (const task of [...this.live.values()]) {
+      this.finish(task.id, 'canceled', 'アプリの終了により中断しました。')
+    }
+  }
+
   downloadDir(): string {
     const dir = loadSettings().downloadDir ?? app.getPath('downloads')
     mkdirSync(dir, { recursive: true })

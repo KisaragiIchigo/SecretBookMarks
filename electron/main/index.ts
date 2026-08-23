@@ -15,8 +15,8 @@ import { session } from './vault/session'
 import { createMainWindow, emitToRenderer, getMainWindow } from './window'
 
 const QUICK_ADD_SHORTCUT = 'CommandOrControl+Shift+B'
-
-let isQuitting = false
+// 終了処理が滞っても、この時間で強制的に終える
+const QUIT_TIMEOUT_MS = 4000
 
 // Chromium が userData を掴む前に置き場所を移す。ready 後では効かない。
 redirectChromiumData()
@@ -38,15 +38,16 @@ function showMainWindow(): void {
 }
 
 function quitApp(): void {
-  isQuitting = true
   app.quit()
 }
 
 function attachWindowLifecycle(window: BrowserWindow): void {
-  window.on('close', (event) => {
-    if (isQuitting || !loadSettings().minimizeToTray) return
-    // トレイ常駐が有効なら閉じるボタンでは終了せず、監視だけ続ける。
-    event.preventDefault()
+  // 閉じるボタンは常に終了する。タスクマネージャーに残り続けるのは分かりにくいため、
+  // 常駐させたい場合は最小化を使う（設定で切り替え）。
+
+  window.on('minimize', () => {
+    if (!loadSettings().minimizeToTray) return
+    // 最小化でトレイへ入れる（タスクバーから消える）。クリップボード監視は続く。
     window.hide()
   })
 }
@@ -100,11 +101,12 @@ async function bootstrap(): Promise<void> {
 }
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin' && !loadSettings().minimizeToTray) quitApp()
+  if (process.platform !== 'darwin') quitApp()
 })
 
 app.on('before-quit', () => {
-  isQuitting = true
+  // 実行中のダウンロードを止める。ffmpeg の子プロセスが残るのを防ぐ。
+  downloads.shutdown()
   // 保存デバウンス中の変更を取りこぼさないよう、鍵を捨てる前に必ず書き切る。
   session.flush()
   session.lock('quit')
@@ -114,4 +116,8 @@ app.on('will-quit', () => {
   globalShortcut.unregisterAll()
   clipboardWatcher.stop()
   destroyTray()
+
+  // 何かが終了を妨げても、確実に終わらせる。
+  const watchdog = setTimeout(() => app.exit(0), QUIT_TIMEOUT_MS)
+  watchdog.unref()
 })

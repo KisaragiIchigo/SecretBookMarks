@@ -129,8 +129,8 @@ export function SettingsDialog({ open, settings, vaultPath, onClose, onChange }:
               onChange={(checked) => void onChange({ autoTagFromPage: checked })}
             />
             <SwitchRow
-              label="閉じるボタンでトレイに常駐"
-              description="ウィンドウを閉じても常駐し、クリップボード監視を続けます。"
+              label="最小化でタスクトレイに入れる"
+              description="最小化したときにタスクバーから消し、トレイに常駐させます。クリップボード監視は続きます。閉じるボタンでは常にアプリを終了します。"
               checked={settings.minimizeToTray}
               onChange={(checked) => void onChange({ minimizeToTray: checked })}
             />
