@@ -4,6 +4,27 @@
   "entries": [
     {
       "date": "2026-08-23",
+      "summary": "ブラウザからのブックマーク追加でタグが付かない問題と、Ctrl+クリックでタブが切り替わる問題を修正した",
+      "purpose": "実使用で挙がった2点への対応。",
+      "targets": [
+        "src/components/dialogs/CaptureDialog.tsx",
+        "electron/main/browser/webviewBridge.ts / electron/preload/index.ts",
+        "src/state/BrowserProvider.tsx / README.md"
+      ],
+      "changes": [
+        "取り込みダイアログの自動取得が「タイトルが空のときだけ」動く条件になっていた。ブラウザからのブックマーク追加はタイトルを渡すため取得が走らず、タグ候補もファビコンも得られていなかった。URL が入っていれば必ず取得するよう条件を変更した。",
+        "既に入っているタイトルは上書きしない（overwriteTitle を追加）。手動の「取得」ボタンは従来どおり上書きする。",
+        "リンクを新しいタブで開く際、setWindowOpenHandler の disposition を尊重するようにした。Ctrl+クリック（background-tab）は背面で開き、Ctrl+Shift+クリック（foreground-tab）はそのタブへ切り替える。",
+        "右クリックの「リンクを新しいタブで開く」も背面で開く（ブラウザの慣習に合わせた）。",
+        "openTab に activate を追加。背面で開く場合でも、タブが1枚も無いときは表示対象として選ぶ。"
+      ],
+      "impact": "Ctrl+クリックでの表示中タブの切り替わりが無くなる。ブラウザからのブックマーク追加でもタグが自動で付く。",
+      "concerns": [
+        "disposition の判定は実際の入力イベントでのみ正しく届く。合成イベントでは foreground-tab として扱われるが、実使用には影響しない。"
+      ]
+    },
+    {
+      "date": "2026-08-23",
       "summary": "戻る/進むを修正した。原因は display:none による webview の切り離しと、サイドボタンの配送経路の取りこぼし",
       "purpose": "3度の修正でも直らなかった戻る/進むへの対応。同じ構成で動作している既存実装（URLSaver）を参照して原因を特定した。",
       "targets": [

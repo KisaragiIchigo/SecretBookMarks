@@ -31,7 +31,7 @@ interface BrowserContextValue {
   mediaFor: (contentsId: number | null) => MediaCandidate[]
   /** 右クリックメニューから「検出済みの動画を表示」が押された回数。パネルを開く合図に使う */
   revealSignal: number
-  openTab: (url: string) => void
+  openTab: (url: string, activate?: boolean) => void
   closeTab: (id: string) => void
   selectTab: (id: string) => void
   patchTab: (id: string, patch: Partial<BrowserTab>) => void
@@ -57,7 +57,7 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
   const [mediaByContents, setMediaByContents] = useState<Record<number, MediaCandidate[]>>({})
   const [revealSignal, setRevealSignal] = useState(0)
 
-  const openTab = useCallback((url: string) => {
+  const openTab = useCallback((url: string, activate = true) => {
     const tab: BrowserTab = {
       id: nextTabId(),
       initialUrl: url,
@@ -69,7 +69,8 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
       contentsId: null,
     }
     setTabs((current) => [...current, tab])
-    setActiveId(tab.id)
+    // 背面で開く場合でも、まだ1枚も無いときは表示するタブが必要。
+    setActiveId((current) => (activate || current === null ? tab.id : current))
   }, [])
 
   const closeTab = useCallback((id: string) => {
@@ -115,7 +116,7 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
           return next
         })
       }),
-      window.sbm.events.onBrowserOpenUrl((url) => openTab(url)),
+      window.sbm.events.onBrowserOpenUrl(({ url, active }) => openTab(url, active)),
     ]
     return () => unsubscribers.forEach((unsubscribe) => unsubscribe())
   }, [openTab])
@@ -145,7 +146,7 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
       activeDownloadCount,
       mediaFor,
       revealSignal,
-      openTab: (url: string) => (url ? openTab(url) : ensureHome()),
+      openTab: (url: string, activate = true) => (url ? openTab(url, activate) : ensureHome()),
       closeTab,
       selectTab: setActiveId,
       patchTab,

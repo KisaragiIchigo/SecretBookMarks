@@ -92,7 +92,8 @@ function buildContextMenu(contents: WebContents, params: ContextMenuParams): Men
   if (params.linkURL) {
     template.push({
       label: 'リンクを新しいタブで開く',
-      click: () => emitToRenderer(IPC_EVENT.browserOpenUrl, params.linkURL),
+      // 「新しいタブで開く」は背面に開くのが慣習。
+      click: () => emitToRenderer(IPC_EVENT.browserOpenUrl, { url: params.linkURL, active: false }),
     })
     template.push({ label: 'リンクをコピー', click: () => clipboard.writeText(params.linkURL) })
     template.push({ type: 'separator' })
@@ -162,8 +163,11 @@ export function registerWebviewBridge(): void {
   app.on('web-contents-created', (_event, contents) => {
     if (contents.getType() !== 'webview') return
 
-    contents.setWindowOpenHandler(({ url }) => {
-      if (/^https?:\/\//i.test(url)) emitToRenderer(IPC_EVENT.browserOpenUrl, url)
+    contents.setWindowOpenHandler(({ url, disposition }) => {
+      // Ctrl+クリックは background-tab、Ctrl+Shift+クリックは foreground-tab。
+      // ブラウザの慣習どおり、要求された方を尊重する。
+      const active = disposition === 'foreground-tab' || disposition === 'new-window'
+      if (/^https?:\/\//i.test(url)) emitToRenderer(IPC_EVENT.browserOpenUrl, { url, active })
       return { action: 'deny' }
     })
 

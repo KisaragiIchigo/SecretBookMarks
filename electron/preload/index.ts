@@ -136,7 +136,8 @@ const api = {
       listener: (payload: { contentsId: number; candidates: MediaCandidate[]; reveal?: boolean }) => void,
     ) => subscribe(IPC_EVENT.mediaDetected, listener),
     onDownloadChanged: (listener: (task: DownloadTask) => void) => subscribe(IPC_EVENT.downloadChanged, listener),
-    onBrowserOpenUrl: (listener: (url: string) => void) => subscribe(IPC_EVENT.browserOpenUrl, listener),
+    onBrowserOpenUrl: (listener: (payload: { url: string; active: boolean }) => void) =>
+      subscribe(IPC_EVENT.browserOpenUrl, listener),
     onBrowserCapturePage: (listener: (payload: { url: string; title: string }) => void) =>
       subscribe(IPC_EVENT.browserCapturePage, listener),
     onBrowserNavigate: (listener: (direction: 'back' | 'forward') => void) =>

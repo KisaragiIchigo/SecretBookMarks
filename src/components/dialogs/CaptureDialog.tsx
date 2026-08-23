@@ -42,8 +42,9 @@ export function CaptureDialog({ draft, onClose, onSubmit }: CaptureDialogProps) 
   }, [draft])
 
   const fetchMeta = useCallback(
-    async (url: string) => {
+    async (url: string, options: { overwriteTitle?: boolean } = {}) => {
       if (!isHttpUrl(url)) return
+      const overwriteTitle = options.overwriteTitle ?? true
       setFetching(true)
       try {
         const meta = await window.sbm.meta.fetchPage(url)
@@ -51,7 +52,9 @@ export function CaptureDialog({ draft, onClose, onSubmit }: CaptureDialogProps) 
 
         const current = formRef.current
         if (!current) return
-        const next: CaptureDraft = { ...current, title: meta.title ?? current.title }
+        // ブラウザから渡されたタイトルは尊重し、空のときだけ取得結果で埋める。
+        const shouldSetTitle = meta.title && (overwriteTitle || !current.title.trim())
+        const next: CaptureDraft = { ...current, title: shouldSetTitle ? (meta.title as string) : current.title }
 
         // 自動付与は新規追加のときだけ。編集中の項目へ勝手にタグを増やさない。
         // 付けるのはこのページから取得したタグだけで、他のブックマークからは引き継がない。
@@ -77,12 +80,16 @@ export function CaptureDialog({ draft, onClose, onSubmit }: CaptureDialogProps) 
     [bookmarks, settings],
   )
 
-  // クリップボード取り込みのように URL だけ埋まって開いた場合は、その場でタイトルとタグ候補を引く。
+  /**
+   * 新規追加なら、URL が入っている時点でページの情報を取りに行く。
+   * タイトルが既に埋まっていても実行する（タグ候補とファビコンのために必要）。
+   * 既存のタイトルは上書きしない。
+   */
   useEffect(() => {
-    if (!draft || draft.id || !draft.url || draft.title) return
+    if (!draft || draft.id || !draft.url) return
     if (autoFetchedRef.current === draft.url) return
     autoFetchedRef.current = draft.url
-    void fetchMeta(draft.url)
+    void fetchMeta(draft.url, { overwriteTitle: false })
   }, [draft, fetchMeta])
 
   const domain = form ? extractDomain(form.url) : ''
