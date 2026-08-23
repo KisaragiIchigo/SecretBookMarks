@@ -12,6 +12,7 @@ export interface LibraryFilter {
 export interface BookmarkGroup {
   key: string
   items: Bookmark[]
+  collapsed: boolean
 }
 
 const RECENT_WINDOW_MS = 7 * 24 * 60 * 60 * 1000
@@ -70,9 +71,14 @@ export function sortBookmarks(bookmarks: Bookmark[], mode: SortMode): Bookmark[]
   }
 }
 
-export function groupBookmarks(bookmarks: Bookmark[], mode: ViewMode): BookmarkGroup[] {
-  if (mode === 'flat') return [{ key: '', items: bookmarks }]
+export function groupBookmarks(
+  bookmarks: Bookmark[],
+  mode: ViewMode,
+  collapsedKeys: readonly string[] = [],
+): BookmarkGroup[] {
+  if (mode === 'flat') return [{ key: '', items: bookmarks, collapsed: false }]
 
+  const collapsed = new Set(collapsedKeys)
   const groups = new Map<string, Bookmark[]>()
   for (const bookmark of bookmarks) {
     const list = groups.get(bookmark.group) ?? []
@@ -80,7 +86,7 @@ export function groupBookmarks(bookmarks: Bookmark[], mode: ViewMode): BookmarkG
     groups.set(bookmark.group, list)
   }
   return [...groups.entries()]
-    .map(([key, items]) => ({ key, items }))
+    .map(([key, items]) => ({ key, items, collapsed: collapsed.has(key) }))
     .sort((a, b) => collator.compare(a.key, b.key))
 }
 

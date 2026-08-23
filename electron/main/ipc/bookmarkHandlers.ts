@@ -16,6 +16,7 @@ import {
   setFavicon,
   setFavorite,
   setGroup,
+  setCollapsedGroups,
   setLinkStatus,
   trashBookmarks,
   updateBookmark,
@@ -26,6 +27,7 @@ import { register, registerVoid } from './register'
 import {
   bulkTagsSchema,
   checkLinksSchema,
+  collapsedGroupsSchema,
   createBookmarkSchema,
   fetchPageMetaSchema,
   idListSchema,
@@ -78,6 +80,8 @@ export function registerBookmarkHandlers(): void {
   register(IPC.bookmarksSetFavorite, setFavoriteSchema, ({ ids, favorite }) => setFavorite(ids, favorite))
   register(IPC.bookmarksSetGroup, setGroupSchema, ({ ids, group }) => setGroup(ids, group))
   register(IPC.bookmarksRenameTag, renameTagSchema, ({ from, to }) => renameTag(from, to))
+
+  register(IPC.bookmarksSetCollapsed, collapsedGroupsSchema, ({ keys }) => setCollapsedGroups(keys))
 
   register(IPC.bookmarksOpen, openBookmarkSchema, async ({ id, external }) => {
     const bookmark = findById(id)

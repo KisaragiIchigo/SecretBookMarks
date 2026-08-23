@@ -15,7 +15,7 @@ import {
 export interface Library {
   visible: Bookmark[]
   groups: BookmarkGroup[]
-  /** 表示順に並んだ id。範囲選択の基準に使う */
+  /** 表示順に並んだ id（たたんだグループは含まない）。範囲選択の基準に使う */
   orderedIds: string[]
   tagCounts: TagCount[]
   counts: LibraryCounts
@@ -27,13 +27,21 @@ export function useLibrary(
   filter: LibraryFilter,
   sortMode: SortMode,
   viewMode: ViewMode,
+  collapsedGroups: readonly string[] = [],
 ): Library {
   const visible = useMemo(
     () => sortBookmarks(filterBookmarks(bookmarks, filter), sortMode),
     [bookmarks, filter, sortMode],
   )
-  const groups = useMemo(() => groupBookmarks(visible, viewMode), [visible, viewMode])
-  const orderedIds = useMemo(() => groups.flatMap((group) => group.items.map((item) => item.id)), [groups])
+  const groups = useMemo(
+    () => groupBookmarks(visible, viewMode, collapsedGroups),
+    [visible, viewMode, collapsedGroups],
+  )
+  // たたんでいるグループの項目は画面に出ないので、範囲選択の対象にもしない。
+  const orderedIds = useMemo(
+    () => groups.filter((group) => !group.collapsed).flatMap((group) => group.items.map((item) => item.id)),
+    [groups],
+  )
   const tagCounts = useMemo(() => collectTagCounts(bookmarks), [bookmarks])
   const counts = useMemo(() => countViews(bookmarks), [bookmarks])
 

@@ -59,6 +59,7 @@ const api = {
     setFavorite: (ids: string[], favorite: boolean) => call<number>(IPC.bookmarksSetFavorite, { ids, favorite }),
     setGroup: (ids: string[], group: string) => call<number>(IPC.bookmarksSetGroup, { ids, group }),
     renameTag: (from: string, to: string) => call<number>(IPC.bookmarksRenameTag, { from, to }),
+    setCollapsedGroups: (keys: string[]) => call<string[]>(IPC.bookmarksSetCollapsed, { keys }),
     open: (id: string, external = false) => call<Bookmark | null>(IPC.bookmarksOpen, { id, external }),
     checkLinks: (ids: string[]) =>
       call<{ id: string; linkStatus: LinkStatus | null }[]>(IPC.bookmarksCheckLinks, { ids }),

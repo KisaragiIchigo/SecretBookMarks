@@ -61,6 +61,7 @@ export const setGroupSchema = z.object({ ids: idListSchema, group: z.string().tr
 export const renameTagSchema = z.object({ from: z.string().trim().min(1).max(64), to: z.string().trim().max(64) })
 export const purgeSchema = z.object({ ids: z.union([idListSchema, z.literal('trash')]) })
 export const checkLinksSchema = z.object({ ids: idListSchema.max(500) })
+export const collapsedGroupsSchema = z.object({ keys: z.array(z.string().max(256)).max(5000) })
 export const fetchPageMetaSchema = z.object({ url: httpUrlSchema })
 export const exportSchema = z.object({
   format: z.enum(['json', 'html', 'csv']),

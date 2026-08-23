@@ -4,6 +4,27 @@
   "entries": [
     {
       "date": "2026-08-23",
+      "summary": "ブックマーク一覧でドメイン（グループ）ごとに折りたためるようにした",
+      "purpose": "グループ数が増えたときに一覧を見通せるようにするため。",
+      "targets": [
+        "shared/types.ts / shared/ipc.ts",
+        "electron/main/vault/session.ts / repository.ts / ipc/vaultHandlers.ts / ipc/bookmarkHandlers.ts / ipc/schemas.ts",
+        "electron/preload/index.ts / src/state/VaultProvider.tsx",
+        "src/lib/library.ts / src/hooks/useLibrary.ts",
+        "src/components/BookmarkList/index.tsx / Toolbar/index.tsx / Workspace/index.tsx / README.md"
+      ],
+      "changes": [
+        "見出しをクリックでそのグループを折りたためるようにした。開閉の状態は矢印の向きで示し、件数は畳んでいても表示する。",
+        "たたみ状態の保存先はヴォールト（collapsedGroups）。グループ名はドメインそのものなので、平文の設定ファイルには置かない。ファイル内にドメイン名が平文で現れないことを実測で確認した。",
+        "たたんでいるグループの項目は描画せず、範囲選択や全選択の対象からも外す。件数が多いほど描画も軽くなる。",
+        "ツールバーに一括開閉のボタンを追加した。1つでも開いていれば全部たたみ、全部たたまれていれば全部開く。",
+        "一覧表示（グループ化しない表示）ではたたみ状態を無視する。"
+      ],
+      "impact": "ヴォールトの形式に collapsedGroups が増えたが、既存のヴォールトは読み込み時に空配列で補完されるため移行は不要。",
+      "concerns": []
+    },
+    {
+      "date": "2026-08-23",
       "summary": "主プロセスが通信層の例外で落ちる問題に対処した（未読の応答本体の破棄とクラッシュガード）",
       "purpose": "AssertionError: assert(!this.paused) で「A JavaScript error occurred in the main process」が出る事象への対応。",
       "targets": [

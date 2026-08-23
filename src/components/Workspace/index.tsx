@@ -31,7 +31,8 @@ export interface WorkspaceProps {
 }
 
 export function Workspace({ settings, mode, onOpenSettings, onNavigate }: WorkspaceProps) {
-  const { bookmarks, favicons, saveState, actions, updateSettings, refresh, lock } = useVault()
+  const { bookmarks, favicons, saveState, actions, updateSettings, refresh, lock, collapsedGroups, setCollapsedGroups } =
+    useVault()
   const toast = useToast()
   const searchRef = useRef<HTMLInputElement>(null)
 
@@ -40,7 +41,7 @@ export function Workspace({ settings, mode, onOpenSettings, onNavigate }: Worksp
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [checking, setChecking] = useState(false)
 
-  const library = useLibrary(bookmarks, filter, settings.sortMode, settings.viewMode)
+  const library = useLibrary(bookmarks, filter, settings.sortMode, settings.viewMode, collapsedGroups)
   const selection = useSelection(library.orderedIds)
   const capture = useCaptureFlow()
 
@@ -60,6 +61,25 @@ export function Workspace({ settings, mode, onOpenSettings, onNavigate }: Worksp
     },
     [actions, bookmarks, onNavigate],
   )
+
+  const toggleGroup = useCallback(
+    (key: string) => {
+      setCollapsedGroups(
+        collapsedGroups.includes(key)
+          ? collapsedGroups.filter((entry) => entry !== key)
+          : [...collapsedGroups, key],
+      )
+    },
+    [collapsedGroups, setCollapsedGroups],
+  )
+
+  /** 表示中のグループをまとめて開閉する。 */
+  const toggleAllGroups = useCallback(() => {
+    const keys = library.groups.map((group) => group.key).filter(Boolean)
+    const anyOpen = library.groups.some((group) => group.key && !group.collapsed)
+    // 1つでも開いていれば全部たたむ。全部たたまれていれば全部開く。
+    setCollapsedGroups(anyOpen ? [...new Set([...collapsedGroups, ...keys])] : collapsedGroups.filter((key) => !keys.includes(key)))
+  }, [collapsedGroups, library.groups, setCollapsedGroups])
 
   const targetIds = useCallback(
     () => (selection.selected.length > 0 ? selection.selected : library.visible.map((b) => b.id)),
@@ -209,6 +229,9 @@ export function Workspace({ settings, mode, onOpenSettings, onNavigate }: Worksp
             onSortChange={(sortMode) => void updateSettings({ sortMode })}
             viewMode={settings.viewMode}
             onViewModeChange={(viewMode) => void updateSettings({ viewMode })}
+            groupsCollapsible={settings.viewMode === 'grouped' && library.groups.length > 0}
+            allCollapsed={library.groups.every((group) => !group.key || group.collapsed)}
+            onToggleAllGroups={toggleAllGroups}
             view={filter.view}
             selectedCount={selection.selected.length}
             checking={checking}
@@ -235,6 +258,7 @@ export function Workspace({ settings, mode, onOpenSettings, onNavigate }: Worksp
             onOpen={openBookmark}
             onToggleFavorite={(id, favorite) => void actions.setFavorite([id], favorite)}
             onClearSelection={selection.clear}
+            onToggleGroup={toggleGroup}
           />
         </main>
 

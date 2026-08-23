@@ -256,3 +256,15 @@ function pruneFavicons(): void {
     if (!alive.has(domain)) delete model.favicons[domain]
   }
 }
+
+/** たたんでいるグループの一覧。ドメイン名を含むためヴォールト内に持つ。 */
+export function collapsedGroups(): string[] {
+  return session.getModel().collapsedGroups ?? []
+}
+
+export function setCollapsedGroups(keys: string[]): string[] {
+  const model = session.getModel()
+  model.collapsedGroups = [...new Set(keys)]
+  session.markDirty()
+  return model.collapsedGroups
+}

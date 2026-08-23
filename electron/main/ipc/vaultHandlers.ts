@@ -3,7 +3,7 @@ import { IPC } from '@shared/ipc'
 import type { VaultSnapshot, VaultStatus } from '@shared/types'
 import { enqueueMissingFavicons } from '../metadata/faviconQueue'
 import { loadSettings } from '../settings'
-import { listBookmarks, pruneTrash } from '../vault/repository'
+import { collapsedGroups, listBookmarks, pruneTrash } from '../vault/repository'
 import { session } from '../vault/session'
 import { register, registerVoid } from './register'
 import { changePasswordSchema, passwordSchema } from './schemas'
@@ -24,7 +24,7 @@ export function buildSnapshot(): VaultSnapshot {
     enqueueMissingFavicons(targets)
   }
 
-  return { bookmarks: listBookmarks(), favicons: model.favicons, settings }
+  return { bookmarks: listBookmarks(), favicons: model.favicons, settings, collapsedGroups: collapsedGroups() }
 }
 
 export function registerVaultHandlers(): void {

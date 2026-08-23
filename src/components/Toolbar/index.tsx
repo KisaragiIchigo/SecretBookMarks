@@ -2,6 +2,8 @@ import { forwardRef } from 'react'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import {
   ArchiveRestore,
+  ChevronsDownUp,
+  ChevronsUpDown,
   Download,
   LayoutList,
   ListTree,
@@ -47,6 +49,9 @@ export interface ToolbarProps {
   onSortChange: (mode: SortMode) => void
   viewMode: ViewMode
   onViewModeChange: (mode: ViewMode) => void
+  groupsCollapsible: boolean
+  allCollapsed: boolean
+  onToggleAllGroups: () => void
   view: SmartView
   selectedCount: number
   checking: boolean
@@ -68,6 +73,9 @@ export const Toolbar = forwardRef<HTMLInputElement, ToolbarProps>(function Toolb
     onSortChange,
     viewMode,
     onViewModeChange,
+    groupsCollapsible,
+    allCollapsed,
+    onToggleAllGroups,
     view,
     selectedCount,
     checking,
@@ -116,6 +124,16 @@ export const Toolbar = forwardRef<HTMLInputElement, ToolbarProps>(function Toolb
           ariaLabel="並び替え"
           className="w-[10.5rem] shrink-0"
         />
+
+        {groupsCollapsible ? (
+          <IconButton
+            label={allCollapsed ? 'すべてのグループを開く' : 'すべてのグループをたたむ'}
+            icon={
+              allCollapsed ? <ChevronsUpDown className="h-4 w-4" /> : <ChevronsDownUp className="h-4 w-4" />
+            }
+            onClick={onToggleAllGroups}
+          />
+        ) : null}
 
         <IconButton
           label={viewMode === 'grouped' ? 'グループ表示（クリックで一覧表示）' : '一覧表示（クリックでグループ表示）'}

@@ -29,6 +29,8 @@ interface VaultContextValue {
   favicons: FaviconMap
   settings: AppSettings | null
   saveState: SaveState
+  collapsedGroups: string[]
+  setCollapsedGroups: (keys: string[]) => void
   vaultPath: string
   lockReason: string | null
   createVault: (password: string) => Promise<void>
@@ -67,6 +69,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
   const [favicons, setFavicons] = useState<FaviconMap>({})
   const [settings, setSettings] = useState<AppSettings | null>(null)
   const [saveState, setSaveState] = useState<SaveState>({ status: 'idle', lastSavedAt: null, message: null })
+  const [collapsedGroups, setCollapsedGroupsState] = useState<string[]>([])
   const [vaultPath, setVaultPath] = useState('')
   const [lockReason, setLockReason] = useState<string | null>(null)
   const lastPingRef = useRef(0)
@@ -75,6 +78,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
     setBookmarks(snapshot.bookmarks)
     setFavicons(snapshot.favicons)
     setSettings(snapshot.settings)
+    setCollapsedGroupsState(snapshot.collapsedGroups ?? [])
     setLockReason(null)
     setPhase('unlocked')
   }, [])
@@ -97,6 +101,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       window.sbm.events.onLocked((reason) => {
         setBookmarks([])
         setFavicons({})
+        setCollapsedGroupsState([])
         setLockReason(reason)
         setPhase('locked')
       }),
@@ -135,6 +140,12 @@ export function VaultProvider({ children }: { children: ReactNode }) {
     },
     [applySnapshot],
   )
+
+  // たたみ状態はヴォールト側に持つ（グループ名がドメインそのものなので平文に置かない）。
+  const setCollapsedGroups = useCallback((keys: string[]) => {
+    setCollapsedGroupsState(keys)
+    void window.sbm.bookmarks.setCollapsedGroups(keys)
+  }, [])
 
   const lock = useCallback(async () => {
     await window.sbm.vault.lock()
@@ -210,6 +221,8 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       favicons,
       settings,
       saveState,
+      collapsedGroups,
+      setCollapsedGroups,
       vaultPath,
       lockReason,
       createVault,
@@ -225,6 +238,8 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       favicons,
       settings,
       saveState,
+      collapsedGroups,
+      setCollapsedGroups,
       vaultPath,
       lockReason,
       createVault,

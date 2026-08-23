@@ -20,6 +20,7 @@ export const IPC = {
   bookmarksOpen: 'bookmarks:open',
   bookmarksCheckLinks: 'bookmarks:check-links',
   bookmarksRenameTag: 'bookmarks:rename-tag',
+  bookmarksSetCollapsed: 'bookmarks:set-collapsed',
 
   metaFetchPage: 'meta:fetch-page',
 

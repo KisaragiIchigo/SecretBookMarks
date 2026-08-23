@@ -41,6 +41,11 @@ export interface VaultModel {
   downloads: DownloadTask[]
   /** サイトのログイン情報。パスワードはさらに個別に暗号化して持つ */
   credentials: StoredCredential[]
+  /**
+   * たたんでいるグループ名。
+   * グループ名はドメインそのものなので、平文の設定ファイルではなくヴォールトに持つ。
+   */
+  collapsedGroups: string[]
 }
 
 /**
@@ -141,6 +146,7 @@ export interface VaultSnapshot {
   bookmarks: Bookmark[]
   favicons: FaviconMap
   settings: AppSettings
+  collapsedGroups: string[]
 }
 
 export interface BookmarkInput {
