@@ -51,8 +51,8 @@ export function useCaptureFlow() {
   const [duplicate, setDuplicate] = useState<DuplicatePrompt | null>(null)
 
   // タグはそのページから取得したものだけを入れる（他のブックマークからは引き継がない）。
-  const openAdd = useCallback((url = '') => {
-    setDraft({ ...EMPTY_DRAFT, url })
+  const openAdd = useCallback((url = '', title = '') => {
+    setDraft({ ...EMPTY_DRAFT, url, title })
   }, [])
 
   const openEdit = useCallback((bookmark: Bookmark) => {
@@ -121,6 +121,7 @@ export function useCaptureFlow() {
     const unsubscribers = [
       window.sbm.events.onClipboardUrl((url) => openAdd(url)),
       window.sbm.events.onQuickAdd(() => openAdd()),
+      window.sbm.events.onBrowserCapturePage(({ url, title }) => openAdd(url, title)),
     ]
     return () => unsubscribers.forEach((unsubscribe) => unsubscribe())
   }, [openAdd, phase])

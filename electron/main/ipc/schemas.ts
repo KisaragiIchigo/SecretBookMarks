@@ -69,3 +69,16 @@ export const exportSchema = z.object({
 export const copyTextSchema = z.object({ text: z.string().max(8192) })
 export const openExternalSchema = z.object({ url: httpUrlSchema })
 export const openBookmarkSchema = z.object({ id: idSchema })
+
+// ===== 内蔵ブラウザ / ダウンロード =====
+
+export const contentsIdSchema = z.object({ contentsId: z.number().int().nonnegative() })
+
+export const startDownloadSchema = z.object({
+  url: httpUrlSchema,
+  kind: z.enum(['file', 'hls']),
+  pageUrl: z.string().trim().max(4096).default(''),
+  fileName: z.string().trim().max(200).optional(),
+})
+
+export const downloadIdSchema = z.object({ id: idSchema })

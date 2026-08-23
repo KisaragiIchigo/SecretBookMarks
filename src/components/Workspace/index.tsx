@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
 import type { AppSettings, ExportFormat } from '@shared/types'
 import { BookmarkList } from '@/components/BookmarkList'
+import { Browser } from '@/components/Browser'
 import { CommandPalette, type PaletteCommand } from '@/components/CommandPalette'
 import { Inspector } from '@/components/Inspector'
 import { Sidebar } from '@/components/Sidebar'
@@ -14,6 +15,7 @@ import { useAppHotkeys } from '@/hooks/useAppHotkeys'
 import { useCaptureFlow } from '@/hooks/useCaptureFlow'
 import { useLibrary } from '@/hooks/useLibrary'
 import { useSelection } from '@/hooks/useSelection'
+import { cn } from '@/lib/cn'
 import { formatCount } from '@/lib/format'
 import type { LibraryFilter, SmartView } from '@/lib/library'
 import { useVault } from '@/state/VaultProvider'
@@ -22,10 +24,11 @@ const LINK_CHECK_LIMIT = 500
 
 export interface WorkspaceProps {
   settings: AppSettings
+  mode: 'library' | 'browser'
   onOpenSettings: () => void
 }
 
-export function Workspace({ settings, onOpenSettings }: WorkspaceProps) {
+export function Workspace({ settings, mode, onOpenSettings }: WorkspaceProps) {
   const { bookmarks, favicons, saveState, actions, updateSettings, refresh, lock } = useVault()
   const toast = useToast()
   const searchRef = useRef<HTMLInputElement>(null)
@@ -156,7 +159,8 @@ export function Workspace({ settings, onOpenSettings }: WorkspaceProps) {
 
   return (
     <>
-      <div className="flex min-h-0 flex-1">
+      {/* ブラウザは常にマウントしたままにして、ライブラリへ戻ってもページを保つ。 */}
+      <div className={cn('min-h-0 flex-1', mode === 'library' ? 'flex' : 'hidden')}>
         <Sidebar
           filter={filter}
           counts={library.counts}
@@ -232,6 +236,12 @@ export function Workspace({ settings, onOpenSettings }: WorkspaceProps) {
           onCheckLinks={() => void handleCheckLinks()}
         />
       </div>
+
+      <Browser
+        visible={mode === 'browser'}
+        homeUrl={settings.browserHomeUrl}
+        onBookmarkPage={(url, title) => capture.openAdd(url, title)}
+      />
 
       <StatusBar
         visibleCount={library.visible.length}

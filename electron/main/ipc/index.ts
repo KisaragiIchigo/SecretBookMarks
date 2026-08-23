@@ -1,4 +1,5 @@
 import { registerBookmarkHandlers } from './bookmarkHandlers'
+import { registerBrowserHandlers } from './browserHandlers'
 import { registerIoHandlers } from './ioHandlers'
 import { registerSystemHandlers } from './systemHandlers'
 import { registerVaultHandlers } from './vaultHandlers'
@@ -7,6 +8,7 @@ import { registerVaultHandlers } from './vaultHandlers'
 export function registerIpcHandlers(): void {
   registerVaultHandlers()
   registerBookmarkHandlers()
+  registerBrowserHandlers()
   registerIoHandlers()
   registerSystemHandlers()
 }

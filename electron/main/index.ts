@@ -1,6 +1,10 @@
 import { BrowserWindow, app, globalShortcut } from 'electron'
 import { IPC_EVENT } from '@shared/ipc'
+import { restoreCookies, startCookieSync } from './browser/session'
+import { startMediaSniffer } from './browser/mediaSniffer'
+import { registerWebviewBridge } from './browser/webviewBridge'
 import { clipboardWatcher } from './clipboard/watcher'
+import { downloads } from './download/manager'
 import { registerIpcHandlers } from './ipc'
 import { redirectChromiumData } from './paths'
 import { loadSettings } from './settings'
@@ -53,6 +57,13 @@ async function bootstrap(): Promise<void> {
   attachWindowLifecycle(window)
   createTray(trayActions)
 
+  // 内蔵ブラウザ一式。セッションは persist しないので、Cookie はヴォールト経由で出し入れする。
+  registerWebviewBridge()
+  startMediaSniffer()
+  startCookieSync()
+  downloads.init()
+  downloads.on('changed', (task) => emitToRenderer(IPC_EVENT.downloadChanged, task))
+
   const settings = loadSettings()
   session.setAutoLockMinutes(settings.autoLockMinutes)
   clipboardWatcher.setEnabled(settings.clipboardWatch)
@@ -66,7 +77,10 @@ async function bootstrap(): Promise<void> {
     emitToRenderer(IPC_EVENT.locked, reason)
     refreshTrayMenu(trayActions)
   })
-  session.on('unlocked', () => refreshTrayMenu(trayActions))
+  session.on('unlocked', () => {
+    refreshTrayMenu(trayActions)
+    void restoreCookies()
+  })
   session.on('save-state', (state) => emitToRenderer(IPC_EVENT.saveState, state))
 
   globalShortcut.register(QUICK_ADD_SHORTCUT, () => {

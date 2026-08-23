@@ -8,6 +8,10 @@ files:
   - dist/**/*
   - package.json
 asar: true
+# HLS の結合に使う。asar の外へ実体で置かないと子プロセスとして起動できない。
+extraResources:
+  - from: node_modules/ffmpeg-static/ffmpeg.exe
+    to: ffmpeg.exe
 # 自動更新は提供しないため、更新情報（latest.yml）の生成を止める。
 # null にしないと publish 設定を探しに行き、ビルド最終段で provider の解決に失敗する。
 publish: null

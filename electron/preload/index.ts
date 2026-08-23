@@ -10,8 +10,10 @@ import type {
   DuplicateResolution,
   ExportFormat,
   ExportSummary,
+  DownloadTask,
   ImportSummary,
   LinkStatus,
+  MediaCandidate,
   SaveState,
   VaultSnapshot,
   VaultStatus,
@@ -70,6 +72,21 @@ const api = {
     exportFile: (format: ExportFormat, includeTrashed: boolean) =>
       call<ExportSummary | null>(IPC.ioExport, { format, includeTrashed }),
   },
+  browser: {
+    mediaList: (contentsId: number) => call<MediaCandidate[]>(IPC.browserMediaList, { contentsId }),
+    mediaClear: (contentsId: number) => call<boolean>(IPC.browserMediaClear, { contentsId }),
+    clearData: () => call<boolean>(IPC.browserClearData),
+  },
+  downloads: {
+    start: (input: { url: string; kind: 'file' | 'hls'; pageUrl: string; fileName?: string }) =>
+      call<DownloadTask>(IPC.downloadStart, input),
+    cancel: (id: string) => call<boolean>(IPC.downloadCancel, { id }),
+    reveal: (id: string) => call<boolean>(IPC.downloadReveal, { id }),
+    list: () => call<DownloadTask[]>(IPC.downloadList),
+    clearHistory: () => call<number>(IPC.downloadClearHistory),
+    chooseDir: () => call<AppSettings | null>(IPC.downloadChooseDir),
+    ffmpegStatus: () => call<{ available: boolean; path: string | null }>(IPC.downloadFfmpegStatus),
+  },
   settings: {
     get: () => call<AppSettings>(IPC.settingsGet),
     set: (patch: Partial<AppSettings>) => call<AppSettings>(IPC.settingsSet, patch),
@@ -97,6 +114,13 @@ const api = {
     onSaveState: (listener: (state: SaveState) => void) => subscribe(IPC_EVENT.saveState, listener),
     onMaximizeChanged: (listener: (maximized: boolean) => void) =>
       subscribe(IPC_EVENT.maximizeChanged, listener),
+    onMediaDetected: (
+      listener: (payload: { contentsId: number; candidates: MediaCandidate[]; reveal?: boolean }) => void,
+    ) => subscribe(IPC_EVENT.mediaDetected, listener),
+    onDownloadChanged: (listener: (task: DownloadTask) => void) => subscribe(IPC_EVENT.downloadChanged, listener),
+    onBrowserOpenUrl: (listener: (url: string) => void) => subscribe(IPC_EVENT.browserOpenUrl, listener),
+    onBrowserCapturePage: (listener: (payload: { url: string; title: string }) => void) =>
+      subscribe(IPC_EVENT.browserCapturePage, listener),
   },
 }
 

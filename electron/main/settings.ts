@@ -16,6 +16,11 @@ const settingsSchema = z.object({
   fetchTitles: z.boolean().default(true),
   fetchFavicons: z.boolean().default(true),
   autoTagFromPage: z.boolean().default(true),
+  /** 内蔵ブラウザの Cookie をヴォールトへ暗号化保存する */
+  saveBrowserCookies: z.boolean().default(true),
+  browserHomeUrl: z.string().max(2048).default('https://duckduckgo.com/'),
+  downloadDir: z.string().max(4096).nullable().default(null),
+  ffmpegPath: z.string().max(4096).nullable().default(null),
   minimizeToTray: z.boolean().default(true),
   sortMode: z
     .enum(['added-desc', 'added-asc', 'title-asc', 'title-desc', 'opened-desc', 'opencount-desc', 'updated-desc'])

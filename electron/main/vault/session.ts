@@ -14,7 +14,7 @@ interface UnlockedState {
 }
 
 function emptyModel(): VaultModel {
-  return { version: MODEL_VERSION, bookmarks: [], favicons: {} }
+  return { version: MODEL_VERSION, bookmarks: [], favicons: {}, cookies: [], downloads: [] }
 }
 
 /**
@@ -68,6 +68,8 @@ class VaultSession extends EventEmitter {
       version: MODEL_VERSION,
       bookmarks: Array.isArray(parsed.bookmarks) ? parsed.bookmarks : [],
       favicons: parsed.favicons ?? {},
+      cookies: Array.isArray(parsed.cookies) ? parsed.cookies : [],
+      downloads: Array.isArray(parsed.downloads) ? parsed.downloads : [],
     }
     this.state = { key: opened.key, salt: opened.salt, model }
     this.touch()

@@ -34,6 +34,18 @@ export const IPC = {
   systemRevealVault: 'system:reveal-vault',
   systemAppInfo: 'system:app-info',
 
+  browserMediaList: 'browser:media-list',
+  browserMediaClear: 'browser:media-clear',
+  browserClearData: 'browser:clear-data',
+
+  downloadStart: 'download:start',
+  downloadCancel: 'download:cancel',
+  downloadList: 'download:list',
+  downloadClearHistory: 'download:clear-history',
+  downloadReveal: 'download:reveal',
+  downloadChooseDir: 'download:choose-dir',
+  downloadFfmpegStatus: 'download:ffmpeg-status',
+
   windowMinimize: 'window:minimize',
   windowToggleMaximize: 'window:toggle-maximize',
   windowClose: 'window:close',
@@ -54,4 +66,8 @@ export const IPC_EVENT = {
   bookmarksChanged: 'event:bookmarks-changed',
   saveState: 'event:save-state',
   maximizeChanged: 'event:maximize-changed',
+  mediaDetected: 'event:media-detected',
+  downloadChanged: 'event:download-changed',
+  browserOpenUrl: 'event:browser-open-url',
+  browserCapturePage: 'event:browser-capture-page',
 } as const

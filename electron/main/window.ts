@@ -53,6 +53,8 @@ export function createMainWindow(): BrowserWindow {
       nodeIntegration: false,
       sandbox: false,
       spellcheck: false,
+      // 内蔵ブラウザ用。webPreferences は will-attach-webview で安全側に上書きする。
+      webviewTag: true,
     },
   })
 

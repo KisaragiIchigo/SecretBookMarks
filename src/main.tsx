@@ -11,6 +11,7 @@ import '@fontsource/ibm-plex-mono/400.css'
 import '@fontsource/ibm-plex-mono/500.css'
 import App from './App'
 import { ToastProvider } from './components/ui/Toast'
+import { BrowserProvider } from './state/BrowserProvider'
 import { VaultProvider } from './state/VaultProvider'
 import './index.css'
 
@@ -19,7 +20,9 @@ createRoot(document.getElementById('root')!).render(
     <LazyMotion features={domMax} strict>
       <ToastProvider>
         <VaultProvider>
-          <App />
+          <BrowserProvider>
+            <App />
+          </BrowserProvider>
         </VaultProvider>
       </ToastProvider>
     </LazyMotion>

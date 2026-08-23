@@ -4,6 +4,36 @@
   "entries": [
     {
       "date": "2026-08-23",
+      "summary": "内蔵ブラウザと動画ダウンローダーを追加し、ブックマーカー兼ブラウザ兼ダウンローダーにした",
+      "purpose": "ブックマークの収集・閲覧・保存を1つのアプリで完結させるため。",
+      "targets": [
+        "electron/main/browser/session.ts / mediaSniffer.ts / webviewBridge.ts（新規）",
+        "electron/main/download/manager.ts / ffmpeg.ts（新規）",
+        "electron/main/ipc/browserHandlers.ts（新規）",
+        "electron/main/index.ts / window.ts / settings.ts / vault/session.ts",
+        "electron/preload/index.ts / shared/types.ts / shared/ipc.ts",
+        "src/state/BrowserProvider.tsx / src/components/Browser/** / src/components/Downloads/**（新規）",
+        "src/App.tsx / src/components/TitleBar / Workspace / dialogs/SettingsDialog",
+        "electron-builder.yml / README.md"
+      ],
+      "changes": [
+        "内蔵ブラウザは <webview> で実装。WebContentsView ではなく webview を選んだのは、この画面がダイアログ・ドロップダウン・コマンドパレット等のオーバーレイを多用しており、DOM の重なり順をそのまま使えるため。重なりの制御漏れがそのまま「操作不能なUI」になるリスクを避けた。",
+        "ブラウザのセッションは persist: を付けない非永続パーティション。Cookie は変更のたびにデバウンスしてヴォールトへ書き、解錠時に復元する。ロックは同期処理で鍵を捨てるため、その瞬間に非同期の書き出しを挟めないことへの対処。",
+        "webRequest.onCompleted でメディアの URL を捕捉。右クリックだけでは <video src> が直リンクの場合しか取れないため、こちらを主力にした。",
+        "右クリックメニューは Main 側のネイティブメニューで構築。webview と Renderer のオーバーレイの重なりを気にせずに済む。",
+        "直リンクは session.downloadURL + DownloadItem、HLS / DASH は ffmpeg の子プロセスで mp4 へ結合。Referer と Cookie をヘッダーで渡す。",
+        "進捗は主記憶のみで扱い、確定した結果だけをヴォールトへ書く（保存の連打を防ぐため）。進捗イベントは 250ms に間引く。",
+        "will-attach-webview で preload の注入と nodeIntegration を禁止し、partition を固定する。",
+        "ffmpeg-static を同梱し、electron-builder の extraResources で asar の外へ実体を配置する。設定から任意の ffmpeg を指定することも可能。"
+      ],
+      "impact": "ヴォールトのモデルに cookies と downloads が増えたが、旧ヴォールトは読み込み時に空配列で補完されるため移行は不要。インストーラーのサイズは ffmpeg のぶん約 80MB 増える。",
+      "concerns": [
+        "MSE / blob で組み立てる動画（YouTube 等）は保存できない。DRM 保護コンテンツは対象外。",
+        "実サイトでの右クリック保存とタブ操作は目視確認が未実施。ローカルの検証用サーバーに対する自動テストは通っている。"
+      ]
+    },
+    {
+      "date": "2026-08-23",
       "summary": "タグの自動付与を「そのページ由来のみ」に限定し、タグ一覧を名前の昇順へ変更した",
       "purpose": "同じドメインの他のブックマークからタグを引き継ぐ挙動が「継ぎ足し」になっており、そのページ自身のタグが欲しいという要望と逆方向だったため。",
       "targets": [
