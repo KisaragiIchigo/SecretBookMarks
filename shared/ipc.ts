@@ -46,6 +46,7 @@ export const IPC = {
   credentialDelete: 'credential:delete',
   credentialReveal: 'credential:reveal',
   credentialFill: 'credential:fill',
+  credentialReadForm: 'credential:read-form',
   credentialHistory: 'credential:history',
   credentialHistoryReveal: 'credential:history-reveal',
   credentialHistoryRestore: 'credential:history-restore',

@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
-import type { AppSettings, ExportFormat } from '@shared/types'
+import type { AppSettings, CredentialCapture, ExportFormat } from '@shared/types'
 import { BookmarkList } from '@/components/BookmarkList'
 import { Browser } from '@/components/Browser'
 import { CommandPalette, type PaletteCommand } from '@/components/CommandPalette'
@@ -28,9 +28,10 @@ export interface WorkspaceProps {
   onOpenSettings: () => void
   /** 内蔵ブラウザで開く。ブラウザ画面への切り替えも行う */
   onNavigate: (url: string) => void
+  onCaptureLogin: (capture: CredentialCapture) => void
 }
 
-export function Workspace({ settings, mode, onOpenSettings, onNavigate }: WorkspaceProps) {
+export function Workspace({ settings, mode, onOpenSettings, onNavigate, onCaptureLogin }: WorkspaceProps) {
   const { bookmarks, favicons, saveState, actions, updateSettings, refresh, lock, collapsedGroups, setCollapsedGroups } =
     useVault()
   const toast = useToast()
@@ -278,6 +279,7 @@ export function Workspace({ settings, mode, onOpenSettings, onNavigate }: Worksp
         visible={mode === 'browser'}
         homeUrl={settings.browserHomeUrl}
         onBookmarkPage={(url, title, contentsId) => capture.openAdd(url, title, contentsId)}
+        onCaptureLogin={onCaptureLogin}
       />
 
       <StatusBar

@@ -49,6 +49,7 @@ export default function App() {
               openTab(url)
               setMode('browser')
             }}
+            onCaptureLogin={setCapturedLogin}
           />
         ) : (
           <UnlockGate />

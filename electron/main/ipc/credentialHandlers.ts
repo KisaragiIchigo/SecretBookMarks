@@ -1,6 +1,6 @@
 import { IPC } from '@shared/ipc'
 import type { CredentialSummary } from '@shared/types'
-import { fillCredential } from '../browser/credentialFill'
+import { fillCredential, readLoginFields } from '../browser/credentialFill'
 import {
   credentialHistory,
   credentialsForOrigin,
@@ -14,6 +14,7 @@ import {
 } from '../vault/credentials'
 import { register, registerVoid } from './register'
 import {
+  contentsIdSchema,
   credentialFillSchema,
   credentialHistorySchema,
   credentialIdSchema,
@@ -41,6 +42,9 @@ export function registerCredentialHandlers(): void {
   register(IPC.credentialReveal, credentialIdSchema, ({ id }) => revealCredential(id))
 
   register(IPC.credentialFill, credentialFillSchema, ({ contentsId, id }) => fillCredential(contentsId, id))
+
+  // 自動検知が働かない画面から、利用者の操作で読み取る。
+  register(IPC.credentialReadForm, contentsIdSchema, ({ contentsId }) => readLoginFields(contentsId))
 
   register(IPC.credentialHistory, credentialIdSchema, ({ id }) => credentialHistory(id))
 

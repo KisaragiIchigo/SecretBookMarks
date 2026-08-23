@@ -125,6 +125,7 @@ const api = {
     reveal: (id: string) => call<{ username: string; password: string } | null>(IPC.credentialReveal, { id }),
     fill: (contentsId: number, id: string) => call<boolean>(IPC.credentialFill, { contentsId, id }),
     history: (id: string) => call<CredentialHistoryView[]>(IPC.credentialHistory, { id }),
+    readForm: (contentsId: number) => call<CredentialCapture | null>(IPC.credentialReadForm, { contentsId }),
     revealHistory: (id: string, index: number) =>
       call<string | null>(IPC.credentialHistoryReveal, { id, index }),
     restoreHistory: (id: string, index: number) =>

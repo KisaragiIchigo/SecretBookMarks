@@ -11,7 +11,7 @@ import {
   ShieldOff,
   X,
 } from 'lucide-react'
-import type { MediaCandidate } from '@shared/types'
+import type { CredentialCapture, MediaCandidate } from '@shared/types'
 import { IconButton } from '@/components/ui/IconButton'
 import { Input } from '@/components/ui/Input'
 import { cn } from '@/lib/cn'
@@ -26,6 +26,8 @@ export interface BrowserProps {
   visible: boolean
   homeUrl: string
   onBookmarkPage: (url: string, title: string, contentsId: number | null) => void
+  /** 自動検知が働かない画面から、手動でログイン情報を保存するとき */
+  onCaptureLogin: (capture: CredentialCapture) => void
 }
 
 /** 入力欄の文字列を URL か検索語かに振り分ける。 */
@@ -37,7 +39,7 @@ function toNavigationUrl(input: string): string {
   return `https://duckduckgo.com/?q=${encodeURIComponent(value)}`
 }
 
-export function Browser({ visible, homeUrl, onBookmarkPage }: BrowserProps) {
+export function Browser({ visible, homeUrl, onBookmarkPage, onCaptureLogin }: BrowserProps) {
   const {
     tabs,
     active,
@@ -190,14 +192,22 @@ export function Browser({ visible, homeUrl, onBookmarkPage }: BrowserProps) {
     navigateHistory('reload')
   }, [active?.url])
 
-  /** 保存済みのログイン情報をページへ入力する。値は Main の中だけで扱われる。 */
-  const fillCredential = useCallback(async () => {
+  /**
+   * 保存済みがあれば入力し、無ければ画面の入力内容を読んで保存を促す。
+   * 自動検知が働かないログイン画面のための逃げ道。
+   */
+  const handleCredentialButton = useCallback(async () => {
     const contentsId = active?.contentsId
     if (!active?.url || contentsId === undefined || contentsId === null) return
+
     const list = await window.sbm.credentials.forOrigin(active.url)
-    if (list.length === 0) return
-    await window.sbm.credentials.fill(contentsId, list[0].id)
-  }, [active?.contentsId, active?.url])
+    if (list.length > 0) {
+      await window.sbm.credentials.fill(contentsId, list[0].id)
+      return
+    }
+    const found = await window.sbm.credentials.readForm(contentsId)
+    if (found) onCaptureLogin(found)
+  }, [active?.contentsId, active?.url, onCaptureLogin])
 
   // パネルを開いた時点で一度自動で走らせる。
   useEffect(() => {
@@ -291,14 +301,17 @@ export function Browser({ visible, homeUrl, onBookmarkPage }: BrowserProps) {
           onClick={() => void toggleAdblockForSite()}
         />
 
-        {credentialCount > 0 ? (
-          <IconButton
-            label="保存したログイン情報を入力"
-            icon={<KeyRound className="h-4 w-4" />}
-            tone="accent"
-            onClick={() => void fillCredential()}
-          />
-        ) : null}
+        <IconButton
+          label={
+            credentialCount > 0
+              ? '保存したログイン情報を入力'
+              : '入力中のログイン情報を保存（自動で聞かれなかった場合に）'
+          }
+          icon={<KeyRound className="h-4 w-4" />}
+          tone={credentialCount > 0 ? 'accent' : 'default'}
+          disabled={!active}
+          onClick={() => void handleCredentialButton()}
+        />
 
         <IconButton
           label="このページをブックマーク"

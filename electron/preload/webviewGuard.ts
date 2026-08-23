@@ -43,35 +43,29 @@ window.addEventListener('mouseup', onNavigationButton, true)
 window.addEventListener('auxclick', onNavigationButton, true)
 
 /**
- * ログインフォームの送信を検知して Main へ渡す。
- * 保存するかどうかは利用者に確認し、保存する場合もヴォールト内で暗号化される。
- * ここで拾った値はディスクへは書かれない。
- */
-/**
- * 送信されたフォームから、保存すべき利用者名とパスワードを選ぶ。
+ * 画面上のパスワード欄から、保存すべき利用者名とパスワードを選ぶ。
  *
  * パスワード欄が複数ある場合は変更・登録フォームのことが多い。
  * 単純に最初の欄を採ると「旧パスワード」を保存してしまうため、
  * 確認欄と一致する値（＝新しいパスワード）を優先する。
  */
-const findLoginFields = (form: HTMLFormElement) => {
-  const passwords = Array.from(form.querySelectorAll<HTMLInputElement>('input[type="password"]')).filter(
+function findLoginFields(scope: ParentNode) {
+  const passwords = Array.from(scope.querySelectorAll<HTMLInputElement>('input[type="password"]')).filter(
     (input) => input.value,
   )
   if (passwords.length === 0) return null
 
   let chosen = passwords[0]
   if (passwords.length > 1) {
-    // 同じ値が2回入力されているものを新しいパスワードとみなす
     const duplicated = passwords.find(
       (input, index) => passwords.findIndex((other, i) => i !== index && other.value === input.value) !== -1,
     )
     chosen = duplicated ?? passwords[passwords.length - 1]
   }
 
-  const inputs = Array.from(form.querySelectorAll<HTMLInputElement>('input'))
-  const chosenIndex = inputs.indexOf(chosen)
   // 利用者名はパスワード欄より前にある入力欄のうち、いちばん近いものを採る
+  const inputs = Array.from(scope.querySelectorAll<HTMLInputElement>('input'))
+  const chosenIndex = inputs.indexOf(chosen)
   const username = inputs
     .slice(0, chosenIndex)
     .reverse()
@@ -88,19 +82,69 @@ const findLoginFields = (form: HTMLFormElement) => {
   }
 }
 
+/**
+ * ログインの検知。
+ *
+ * form の submit だけを見ていると、ボタンのクリックで送る作りや Enter で送る作りを
+ * 丸ごと取りこぼす（実測で確認）。送信の合図になりうる操作を広く拾い、
+ * 同じ内容の重複だけを抑える。
+ */
+let lastSent = ''
+let lastSentAt = 0
+
+function reportCredentials(scope: ParentNode | null): void {
+  const found = findLoginFields(scope ?? document)
+  if (!found) return
+
+  const signature = `${location.origin}|${found.username}|${found.password}`
+  const now = Date.now()
+  // クリックと Enter の両方が起きる作りもあるため、同じ内容の連投を抑える
+  if (signature === lastSent && now - lastSentAt < 5000) return
+  lastSent = signature
+  lastSentAt = now
+
+  ipcRenderer.send('sbm:credential-capture', {
+    origin: location.origin,
+    username: found.username,
+    password: found.password,
+    multiplePasswordFields: found.multiplePasswordFields,
+  })
+}
+
+/** 対象の要素が属するフォーム。無ければ画面全体を見る。 */
+function scopeOf(node: EventTarget | null): ParentNode {
+  if (node instanceof Element && typeof node.closest === 'function') {
+    return node.closest('form') ?? document
+  }
+  return document
+}
+
+// 昔ながらの form 送信
+window.addEventListener('submit', (event) => reportCredentials(scopeOf(event.target)), true)
+
+// ボタンのクリックで送る作り。画面が切り替わる前に読む必要があるのでその場で拾う。
 window.addEventListener(
-  'submit',
+  'click',
   (event) => {
-    const form = event.target as HTMLFormElement | null
-    if (!form || typeof form.querySelector !== 'function') return
-    const found = findLoginFields(form)
-    if (!found) return
-    ipcRenderer.send('sbm:credential-capture', {
-      origin: location.origin,
-      username: found.username,
-      password: found.password,
-      multiplePasswordFields: found.multiplePasswordFields,
-    })
+    const target = event.target
+    if (!(target instanceof Element) || typeof target.closest !== 'function') return
+    const trigger = target.closest('button, input[type="submit"], input[type="button"], [role="button"], a')
+    if (!trigger) return
+    reportCredentials(scopeOf(trigger))
   },
   true,
 )
+
+// パスワード欄などで Enter を押す作り
+window.addEventListener(
+  'keydown',
+  (event) => {
+    if ((event as KeyboardEvent).key !== 'Enter') return
+    if (!(event.target instanceof HTMLInputElement)) return
+    reportCredentials(scopeOf(event.target))
+  },
+  true,
+)
+
+// 画面を離れる直前。上のどれにも当てはまらない作りへの保険。
+window.addEventListener('pagehide', () => reportCredentials(document), true)

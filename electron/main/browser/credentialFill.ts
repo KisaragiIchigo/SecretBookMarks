@@ -56,3 +56,62 @@ export async function fillCredential(contentsId: number, credentialId: string): 
     return false
   }
 }
+
+/** 表示中のページに入力されている利用者名とパスワードを読む。 */
+const READER = `(() => {
+  const scopes = [document, ...Array.from(document.querySelectorAll('form'))]
+  for (const scope of scopes) {
+    const passwords = Array.from(scope.querySelectorAll('input[type="password"]')).filter((i) => i.value)
+    if (passwords.length === 0) continue
+    let chosen = passwords[0]
+    if (passwords.length > 1) {
+      const dup = passwords.find((input, index) =>
+        passwords.findIndex((other, i) => i !== index && other.value === input.value) !== -1)
+      chosen = dup || passwords[passwords.length - 1]
+    }
+    const inputs = Array.from(scope.querySelectorAll('input'))
+    const index = inputs.indexOf(chosen)
+    const user = inputs.slice(0, index).reverse().find((input) => {
+      const type = (input.type || '').toLowerCase()
+      return input.value && ['text', 'email', 'tel', 'username', ''].includes(type)
+    })
+    return JSON.stringify({
+      origin: location.origin,
+      username: user ? user.value : '',
+      password: chosen.value,
+      multiplePasswordFields: passwords.length > 1,
+    })
+  }
+  return ''
+})()`
+
+/**
+ * 自動検知が働かない画面のための手動保存。
+ * すべてのフレームを見て、最初に見つかった入力内容を返す。
+ */
+export async function readLoginFields(contentsId: number): Promise<{
+  origin: string
+  username: string
+  password: string
+  multiplePasswordFields: boolean
+} | null> {
+  const contents = webContents.fromId(contentsId)
+  if (!contents || contents.isDestroyed()) return null
+
+  for (const frame of [contents.mainFrame, ...contents.mainFrame.framesInSubtree]) {
+    try {
+      const raw = (await frame.executeJavaScript(READER, false)) as string
+      if (!raw) continue
+      const parsed = JSON.parse(raw) as {
+        origin: string
+        username: string
+        password: string
+        multiplePasswordFields: boolean
+      }
+      if (parsed.password) return parsed
+    } catch {
+      // 実行できないフレームは飛ばす。
+    }
+  }
+  return null
+}
