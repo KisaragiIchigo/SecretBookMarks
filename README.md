@@ -154,6 +154,7 @@ Renderer（React）──invoke──▶ preload（ContextBridge）──▶ Mai
 | バックアップ | `<データフォルダー>/backups/vault-*.sbm` |
 | 設定 | `<データフォルダー>/settings.json` |
 | Chromium のキャッシュ | `<データフォルダー>/chromium-cache/` |
+| エラーの記録 | `<データフォルダー>/errors.log`（発生したときのみ作成されます） |
 
 Electron の既定では Chromium のキャッシュ（`GPUCache`、`Local Storage` など）がヴォールトと同じ階層に散らばるため、`chromium-cache` サブフォルダーへ隔離しています。このフォルダーは削除しても再生成されます。
 

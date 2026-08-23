@@ -7,6 +7,7 @@ import { registerWebviewBridge } from './browser/webviewBridge'
 import { clipboardWatcher } from './clipboard/watcher'
 import { downloads } from './download/manager'
 import { registerIpcHandlers } from './ipc'
+import { installCrashGuard } from './crashGuard'
 import { redirectChromiumData } from './paths'
 import { loadSettings } from './settings'
 import { createTray, destroyTray, refreshTrayMenu } from './tray'
@@ -19,6 +20,8 @@ let isQuitting = false
 
 // Chromium が userData を掴む前に置き場所を移す。ready 後では効かない。
 redirectChromiumData()
+// 通信層など、こちらで防ぎきれない例外でアプリごと落ちないようにする。
+installCrashGuard()
 
 if (!app.requestSingleInstanceLock()) {
   app.quit()

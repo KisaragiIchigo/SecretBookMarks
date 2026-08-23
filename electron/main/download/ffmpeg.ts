@@ -74,7 +74,11 @@ export async function streamDurationSeconds(
   let text: string
   try {
     const response = await fetch(url, { headers, redirect: 'follow' })
-    if (!response.ok) return null
+    if (!response.ok) {
+      // 読まない本体は捨てる。放置すると undici が停止状態のまま接続終了して落ちる。
+      await response.body?.cancel().catch(() => undefined)
+      return null
+    }
     text = await response.text()
   } catch {
     return null

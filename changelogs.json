@@ -4,6 +4,27 @@
   "entries": [
     {
       "date": "2026-08-23",
+      "summary": "主プロセスが通信層の例外で落ちる問題に対処した（未読の応答本体の破棄とクラッシュガード）",
+      "purpose": "AssertionError: assert(!this.paused) で「A JavaScript error occurred in the main process」が出る事象への対応。",
+      "targets": [
+        "electron/main/metadata/fetchPageMeta.ts",
+        "electron/main/download/ffmpeg.ts",
+        "electron/main/crashGuard.ts（新規）",
+        "electron/main/index.ts / README.md"
+      ],
+      "changes": [
+        "応答本体を読まずに抜ける経路で、body を明示的に cancel するようにした。放置すると undici の parser が停止状態のまま接続が終わり、assert(!this.paused) で主プロセスが落ちる。該当は5か所（リンク検査の HEAD/GET、HTML 以外や大きすぎるページ、ファビコンの不一致・失敗、マニフェスト取得の失敗）。",
+        "crashGuard を追加。uncaughtException / unhandledRejection / レンダラーや子プロセスの異常終了を受け止め、データフォルダーの errors.log へ記録して動作を続ける。同じ内容は3回までに抑える。",
+        "ヴォールトは保存のたびに書き切っているため、通信層の例外でアプリ全体を終了させるより、記録して継続する方が実害が小さいと判断した。"
+      ],
+      "impact": "同種の例外でモーダルが出てアプリが終了することは無くなる。発生した内容は errors.log に残る。",
+      "concerns": [
+        "報告のスタックトレースは TLSSocket 上のもので、平文 HTTP の検証用サーバーでは再現できなかった。原因の特定はスタックトレース（parser が停止状態のまま接続終了）に基づく推定であり、決定的な再現は取れていない。クラッシュガードにより、仮に別の要因であってもアプリの終了は防げる。",
+        "uncaughtException を受け止めるため、未知の不具合が画面に出なくなる。errors.log を見れば分かるようにしてある。"
+      ]
+    },
+    {
+      "date": "2026-08-23",
       "summary": "ブラウザからのブックマークでタグが付かない問題を修正し、ログイン情報の暗号化保管を追加した",
       "purpose": "ブックマークボタン経由でタグが付かない件への対応と、サイトのログイン情報を平文で残さずに保管する要望への対応。",
       "targets": [

@@ -16,6 +16,19 @@ export interface PageMeta {
 const KEYWORD_MAX_LENGTH = 24
 const KEYWORD_LIMIT = 8
 
+/**
+ * 読まないレスポンス本体を明示的に捨てる。
+ * 放置すると undici の parser が停止したまま接続が終わり、
+ * assert(!this.paused) で主プロセスが落ちる。
+ */
+async function discard(response: Response): Promise<void> {
+  try {
+    await response.body?.cancel()
+  } catch {
+    // 既に閉じている場合は何もしなくてよい。
+  }
+}
+
 async function fetchWithTimeout(url: string, init: RequestInit = {}): Promise<Response> {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS)
@@ -141,9 +154,15 @@ async function fetchFavicon(pageUrl: string, html: string | null): Promise<strin
   for (const target of targets) {
     try {
       const response = await fetchWithTimeout(target)
-      if (!response.ok) continue
+      if (!response.ok) {
+        await discard(response)
+        continue
+      }
       const type = (response.headers.get('content-type') ?? '').toLowerCase()
-      if (type && !type.startsWith('image/')) continue
+      if (type && !type.startsWith('image/')) {
+        await discard(response)
+        continue
+      }
       const buffer = Buffer.from(await response.arrayBuffer())
       if (buffer.byteLength === 0 || buffer.byteLength > FAVICON_LIMIT_BYTES) continue
       const mime = type.split(';')[0] || 'image/x-icon'
@@ -172,6 +191,8 @@ export async function fetchPageMeta(
       if (response.ok && contentType.includes('html') && length <= HTML_LIMIT_BYTES) {
         const buffer = await response.arrayBuffer()
         if (buffer.byteLength <= HTML_LIMIT_BYTES) html = decodeHtml(buffer, contentType)
+      } else {
+        await discard(response)
       }
     } catch {
       html = null
@@ -194,6 +215,8 @@ export async function checkLink(url: string): Promise<number | null> {
   for (const method of ['HEAD', 'GET'] as const) {
     try {
       const response = await fetchWithTimeout(url, { method })
+      // 状態を見るだけなので、本体は必ず捨てる。
+      await discard(response)
       if (method === 'HEAD' && (response.status === 405 || response.status === 501)) continue
       return response.status
     } catch {
