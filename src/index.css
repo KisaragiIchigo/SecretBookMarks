@@ -1,0 +1,88 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-ink-900 font-sans text-slate-200 antialiased;
+    overflow: hidden;
+    /* 背景の奥行き。ノイズ画像は使わず、極薄のティール発光を2枚だけ重ねる。 */
+    background-image:
+      radial-gradient(1100px 620px at 12% -10%, rgba(13, 148, 136, 0.1), transparent 62%),
+      radial-gradient(900px 520px at 100% 108%, rgba(16, 185, 129, 0.07), transparent 58%);
+    background-attachment: fixed;
+  }
+
+  ::selection {
+    @apply bg-teal-500/30 text-teal-50;
+  }
+
+  ::-webkit-scrollbar {
+    width: 9px;
+    height: 9px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-white/10;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(45, 212, 191, 0.45);
+    background-clip: content-box;
+  }
+
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus {
+    -webkit-text-fill-color: theme('colors.slate.200');
+    -webkit-box-shadow: 0 0 0 1000px theme('colors.ink.850') inset;
+    caret-color: theme('colors.slate.200');
+  }
+
+  button:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  [role='button']:focus-visible,
+  [role='option']:focus-visible {
+    @apply outline-none ring-1 ring-teal-400/60;
+  }
+}
+
+@layer components {
+  .drag-region {
+    -webkit-app-region: drag;
+  }
+
+  .no-drag {
+    -webkit-app-region: no-drag;
+  }
+
+  /* アクリル調の面。パネル・ダイアログ・ポップオーバーで共有する。 */
+  .surface-panel {
+    @apply border border-white/[0.06] bg-white/[0.02] backdrop-blur-md;
+  }
+
+  .surface-sunken {
+    @apply border border-white/[0.06] bg-black/40 shadow-[inset_0_1px_3px_rgba(0,0,0,0.5)];
+  }
+
+  .label-caps {
+    @apply text-xs font-medium uppercase tracking-[0.18em] text-slate-400;
+  }
+}

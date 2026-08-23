@@ -1,0 +1,82 @@
+{
+  "project": "SecretBookMarks",
+  "description": "変更履歴。AI が再利用しやすいよう、日時・対象ファイル・変更概要・目的・影響範囲・懸念点を各エントリに記録する。",
+  "entries": [
+    {
+      "date": "2026-08-07",
+      "summary": "タグ入力の省力化、ツールバーの折り返し破綻の修正、データ保存先の整理を行った",
+      "purpose": "実利用で挙がった3点（タグ付けが面倒 / 狭い幅でボタンが2行に割れる / 保存先が散らかっている）を解消するため。",
+      "targets": [
+        "electron/main/paths.ts（新規）",
+        "electron/main/index.ts / settings.ts / vault/file.ts / window.ts / ipc/systemHandlers.ts",
+        "electron/main/metadata/fetchPageMeta.ts / electron/preload/index.ts",
+        "src/lib/tagSuggest.ts（新規）",
+        "src/components/ui/TagInput（新規）/ TagSuggestions（新規）/ Button",
+        "src/components/Toolbar / Inspector / dialogs/CaptureDialog / dialogs/BulkTagDialog / dialogs/SettingsDialog",
+        "src/hooks/useCaptureFlow.ts / shared/types.ts",
+        "README.md"
+      ],
+      "changes": [
+        "保存先: Chromium のキャッシュ類を userData 直下から chromium-cache サブフォルダーへ隔離（app.setPath を ready 前に実行）。vault.sbm / settings.json / backups はデータフォルダー直下のまま変更なしのため、既存データの移行は不要。",
+        "保存先: ポータブル動作を追加。PORTABLE_EXECUTABLE_DIR、または exe の隣の portable.txt を検出したら、データを exe の隣の SecretBookMarks-data へ保存する。",
+        "タグ: 同一ドメインの過半数に付いているタグを新規追加時に自動入力（設定 inheritDomainTags で無効化可能）。",
+        "タグ: meta keywords / article:tag / og:site_name からタグ候補を抽出し、同ドメイン実績・ページ由来・よく使うタグの3系統をチップで提示。",
+        "タグ: 入力欄をチップ式の TagInput に置き換え、入力中に既存タグを補完。取り込みダイアログ・インスペクタ・一括編集の3か所で共通化。",
+        "デザイン: ツールバーを flex-wrap 構成にし、幅が足りないときはボタンを潰さず右側グループを次の行へ送るようにした。Button に shrink-0 と whitespace-nowrap を付与し、ラベルの2行折り返しを解消。",
+        "デザイン: 検索欄が flex で伸びていなかった（レイアウト用クラスが Input の内側要素に付いていた）ため、外側のラッパーで幅を制御するよう修正。ウィンドウ最小サイズを 1040x620 に引き上げ。"
+      ],
+      "impact": "既存のヴォールトと設定はそのまま読み込める。CaptureDraft.tags の型が string から string[] へ変わったため、取り込みフローに触る場合は注意。",
+      "concerns": [
+        "userData 移設前に生成された Chromium のキャッシュ（Cache / GPUCache / Local Storage 等）はデータフォルダー直下に残る。動作には影響しないが、手動削除しないと見た目の散らかりは残る。",
+        "タグの自動引き継ぎは「同ドメインの過半数」を条件にしているため、1 つのドメインを複数用途で使い分けている場合は意図しないタグが入ることがある。設定で無効化できる。"
+      ]
+    },
+    {
+      "date": "2026-08-07",
+      "summary": "起動.bat と makeexe.bat を追加し、README にかんたん起動の節を追記した",
+      "purpose": "コマンド操作なしで起動と exe 生成ができるようにするため（旧版の !exe化呪文.txt に相当する導線の置き換え）。",
+      "targets": ["起動.bat", "makeexe.bat", "README.md"],
+      "changes": [
+        "起動.bat: node_modules と dist/main/index.cjs の有無を見て、必要なときだけ npm install / npm run build を実行してから electron.exe を起動する。",
+        "makeexe.bat: 依存を揃えたうえで npm run dist を実行し、完了後に release フォルダーを開く。",
+        "両ファイルとも先頭で ELECTRON_RUN_AS_NODE を空にする。この環境変数が残っていると Electron が素の Node として起動し、app が undefined になって落ちるため。",
+        "文字コードは UTF-8（BOM なし）＋ CRLF とし、2 行目に chcp 65001 を置いた。LF 改行では cmd が goto と if ブロックの解析に失敗し、CP932 保存ではコンソールのコードページ次第で化けることを実測で確認したため。",
+        "electron-builder.yml に publish: null を追加。未指定のままだと exe の生成後に更新情報（latest.yml）を作ろうとして provider の解決に失敗し、成果物は出ているのにビルドが exit 1 で終わる。"
+      ],
+      "impact": "アプリ本体のコードには影響しない。ソース変更後に 起動.bat を使う場合は、dist が残っているとビルドが走らない点に注意。",
+      "concerns": [
+        "起動.bat は dist の鮮度を見ないため、ソース変更後の再ビルドは利用者側の操作に依存する。",
+        "makeexe.bat の初回実行は electron-builder が外部から数百 MB を取得するため、オフライン環境では失敗する。"
+      ]
+    },
+    {
+      "date": "2026-08-07",
+      "summary": "PySide6 版 SecretBookMarks を Electron + React + TypeScript でフルリメイクし、remake/ 配下に新規構築した",
+      "purpose": "デスクトップ常駐とクリップボード監視を維持したまま、暗号化の強度・UI の情報密度・拡張性を引き上げるため。",
+      "targets": [
+        "package.json / tsconfig*.json / vite.config.ts / tailwind.config.js / postcss.config.js / electron-builder.yml",
+        "scripts/dev.mjs / scripts/build-main.mjs",
+        "shared/types.ts / shared/ipc.ts / shared/url.ts / shared/tags.ts",
+        "electron/main/**（vault, ipc, metadata, clipboard, io, window, tray, settings）",
+        "electron/preload/index.ts",
+        "src/**（App, Workspace, components, hooks, lib, state）",
+        "project_style.json / README.md / tools/migrate_legacy.py"
+      ],
+      "changes": [
+        "保存方式を SQLite + Fernet から単一ヴォールトファイル（gzip → AES-256-GCM）へ変更。ヘッダに scrypt パラメータとソルトを持たせ、AAD で認証する。",
+        "鍵導出を scrypt(N=65536, r=8, p=1) に変更。旧実装のパスワード 0 埋めをそのまま鍵にする方式を廃止。",
+        "重複判定に使っていた平文の url_hash カラムを廃止し、メモリ上の正規化 URL 比較に置き換え。",
+        "IPC を ipcMain.handle / invoke に統一し、全ペイロードを Zod で検証。戻り値は IpcResult で成功と失敗を型で分離。",
+        "ファビコンをドメイン単位のマップとしてヴォールト内に保持し、ブックマーク件数に比例した転送量になる設計を回避。",
+        "自動ロック、パスワード変更、ゴミ箱（論理削除と保持期間）、リンク切れ検査、入出力（HTML / JSON / CSV）、コマンドパレット、トレイ常駐、グローバルショートカットを新規実装。",
+        "UI を project_style.json（ダークアクリル + ティール/エメラルド）に基づいて再設計。フォントは @fontsource でローカル同梱し、CDN 依存を排除。"
+      ],
+      "impact": "旧 Python 実装とはデータ形式の互換がない。移行は tools/migrate_legacy.py で JSON へ書き出し、新アプリの取り込み機能を使う。",
+      "concerns": [
+        "ヴォールトは変更のたびに全体を書き直すため、数万件規模では保存時間が伸びる可能性がある。現状は 400ms のデバウンスで吸収している。",
+        "Renderer 上には復号済みのブックマークが保持される。ロック時に破棄しているが、メモリダンプに対する防御ではない。",
+        "exe 生成（NSIS / ポータブル）と asar + file:// でのプロセス起動は確認済み。ただし UI の実操作（解錠、取り込み、検索）は目視での確認が未実施。"
+      ]
+    }
+  ]
+}

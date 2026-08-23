@@ -1,0 +1,80 @@
+{
+  "_readme": "プロジェクトスタイルマニフェスト。エージェントはUIに触れるすべてのタスクの冒頭でこれを読み、ここに無い色・フォント・質感を勝手に導入してはならない。変更はユーザー合意の上でこのファイルを更新し、changelogs.json に記録する。",
+  "meta": {
+    "project": "SecretBookMarks",
+    "concept": "手元のPCだけで完結する暗号化ブックマークヴォールト。人に見せない前提のURLを、鍵をかけたまま高速に出し入れするためのプロ用インスペクタ。",
+    "mood_keywords": ["静謐", "高密度", "秘匿", "ラボの計器盤", "夜間作業"],
+    "created": "2026-08-07",
+    "updated": "2026-08-07"
+  },
+  "stack": {
+    "framework": "Electron + Vite + React + TypeScript",
+    "styling": "Tailwind CSS v3",
+    "ui_primitives": "Radix UI",
+    "motion": "Framer Motion（LazyMotion features={domMax} + m モジュール。layoutId を使うため domAnimation では不足）",
+    "icons": "lucide-react",
+    "_rule": "スタック変更はユーザーの明示指定のみ"
+  },
+  "palette": {
+    "base_bg": "#070b14",
+    "base_bg_alt": "#04070d",
+    "surface": "bg-white/[0.02]",
+    "surface_raised": "bg-white/[0.035]",
+    "surface_deep": "bg-black/40",
+    "border": "border-white/[0.06]",
+    "border_subtle": "border-white/[0.04]",
+    "accent_gradient": "from-teal-600 via-emerald-600 to-emerald-700",
+    "accent_glow": "shadow-[0_0_15px_rgba(20,184,166,0.2)]",
+    "accent_badge": "bg-teal-500/10 text-teal-300",
+    "accent_line": "bg-teal-400/70",
+    "focus_ring": "focus:border-teal-500/50",
+    "danger": "bg-rose-500/10 border-rose-500/20 text-rose-300",
+    "warning": "bg-amber-500/10 border-amber-500/20 text-amber-300",
+    "text_primary": "text-slate-200",
+    "text_secondary": "text-slate-400",
+    "text_description_min": "text-xs 以上・透過なしの text-slate-300 / text-slate-400",
+    "_rule": "新しい色はまずここに追記してから使う。UIファイルへの直書きで色を増やさない"
+  },
+  "typography": {
+    "display": "Space Grotesk Variable（見出し・ワードマーク・数値の主張が必要な箇所）",
+    "body": "IBM Plex Sans JP（和欧混植をこの1書体で担保）",
+    "mono": "IBM Plex Mono（URL・ハッシュ・日時・カウンタ）",
+    "jp": "IBM Plex Sans JP（モダンゴシック。ウェイト400/500/600/700とトラッキングで階層を作る）",
+    "label_style": "text-xs + UPPERCASE + tracking-[0.18em] 前後",
+    "fluid": "tailwind.config.js の fontSize を全段 clamp() 化済み。text-[10px] 等の直書きは禁止",
+    "delivery": "@fontsource パッケージでローカル同梱。CDN参照は禁止"
+  },
+  "texture": {
+    "acrylic": true,
+    "backdrop_blur": "backdrop-blur-md",
+    "inset_shadow": "shadow-[inset_0_1px_3px_rgba(0,0,0,0.5)]",
+    "panel_shadow": "shadow-panel",
+    "grain": "背景に radial-gradient を2枚重ねた極薄のティール発光のみ。ノイズ画像は使わない"
+  },
+  "density": {
+    "level": "high",
+    "reference": "Adobe製品 / DaVinci Resolve のインスペクタパネル",
+    "row_height": "リスト行は 40〜44px。グループ見出しは 28px",
+    "icon_size": "w-3.5 h-3.5 〜 w-4 h-4",
+    "icon_color": "text-slate-400",
+    "slider": "極細トラック + 発光数値バッジ"
+  },
+  "motion": {
+    "hover": "hover:scale-[1.01]",
+    "active": "active:scale-[0.98]",
+    "tab_switch": "Magic Motion（layoutId による滑らかな遷移）",
+    "dialog": "opacity + scale 0.97→1 / 160〜200ms / ease [0.22,1,0.36,1]",
+    "disabled": "グレーアウトせず opacity-25〜40"
+  },
+  "zindex": { "base": 0, "floating": 40, "modal": 50, "tooltip": 60 },
+  "forbidden": [
+    "紫グラデーション on 白背景",
+    "Inter / Roboto / Arial / Outfit / システムフォント頼みのタイポグラフィ",
+    "和文UIへの明朝系フォント（Shippori Mincho 等）",
+    "text-[10px] / text-[11px] や薄すぎるカラーの説明文",
+    "太いグレー枠・デフォルト影・原色ベタ塗り",
+    "このファイルに無い色やフォントの直書き導入",
+    "外部CDNからのフォント・スクリプト読み込み"
+  ],
+  "app_text_tone": "アプリ内のヘルプ・設定補足・マニュアル類は「です・ます調（セミフォーマル）」で統一"
+}

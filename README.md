@@ -1,81 +1,192 @@
-# SecretBookMarks ©️2025 KisaragiIchigo
+# SecretBookMarks
 
-## Download
+ローカル完結の暗号化ブックマークヴォールト。Electron + Vite + React + TypeScript + Tailwind CSS v3 + Radix UI で作り直した、PySide6 版のリメイクです。
 
-[https://github.com/KisaragiIchigo/SecretBookMarks-/releases/tag/v0.1.0]
+## 機能ハイライト
 
+- 🔐 **ヴォールト方式の暗号化** — ブックマーク全体を 1 ファイルへまとめ、**scrypt (N=65536) で導出した鍵による AES-256-GCM** で暗号化します。URL のハッシュや件数の手がかりを平文で残しません。
+- 🕒 **自動ロック** — 無操作が続くとマスターキーをメモリから破棄します。手動ロックは `Ctrl+L` です。
+- 📋 **クリップボード監視** — URL をコピーすると取り込みダイアログが開き、タイトルとファビコンを自動取得します。
+- 🔎 **検索構文** — `tag:python site:github.com is:favorite after:2026-01-01 "完全一致"` を組み合わせた絞り込みに対応します。
+- ⌘ **コマンドパレット** — `Ctrl+K` でブックマークの横断検索と主要操作の実行ができます。
+- 🏷️ **タグ入力の省力化** — 同じドメインで使っているタグの自動引き継ぎ、ページから抽出したキーワードの候補表示、入力中の既存タグ補完に対応します。タグはチップとして扱い、Enter とカンマで確定します。
+- 🗂️ **タグ運用** — サイドバーからのタグ絞り込み（AND）、名前の変更、全項目からの除去、選択項目へのタグ一括編集（追加 / 削除 / 置き換え）に対応します。
+- 🧭 **インスペクタ** — 選択した項目のタイトル・タグ・グループ・メモをその場で編集でき、追加日時や開いた回数も確認できます。
+- ♻️ **重複の解決** — 正規化した URL が一致した場合に、マージ / 上書き / スキップを選べます。
+- 🗑️ **ゴミ箱** — 削除は論理削除で、保持期間を過ぎた項目だけを自動で完全削除します。
+- 🔗 **リンク切れ検査** — 選択項目または表示中の項目へまとめて疎通確認を行い、結果を保持します。
+- 📥 **入出力** — ブラウザの HTML ブックマークと JSON を取り込み、JSON / HTML / CSV へ書き出せます。
+- 🖥️ **常駐と復元** — トレイ常駐、`Ctrl+Shift+B` のクイック追加、ウィンドウ位置とサイズの保存に対応します。
+- 💾 **世代バックアップ** — 保存のたびに一時ファイル経由で書き込み、一定間隔でバックアップを最大 8 世代残します。
 
-## 概要
-**SecretBookMarks** は、ローカルで安全にブックマークを管理できるアプリです。  
-特徴は以下の通り：
+## アーキテクチャ概要
 
-- ブックマークは **暗号化DB** に保存され、パスワードで保護
-- **URLコピーを自動検知** → 即座に登録ダイアログを表示
-- **タグ管理・検索機能**（複数AND検索対応）
-- **タグ一括編集**（置換・追加・削除）
-- **URL重複チェック**（マージ / 上書き / スキップ）
-- **並び替え**: 追加順（新⇔旧）/ タイトル（ナチュラル昇降順）
-- **GUIフレームレスデザイン** & ウィンドウ位置・サイズ保存
+```text
+remake/
+├── electron/
+│   ├── main/                       … Main プロセス（Node.js 環境・OS 操作と暗号処理）
+│   │   ├── index.ts                … 起動シーケンス、単一インスタンス制御、常駐とショートカット
+│   │   ├── paths.ts                … データフォルダーの解決、ポータブル判定、Chromium データの隔離
+│   │   ├── window.ts               … BrowserWindow 生成、ジオメトリ保存、外部遷移の遮断
+│   │   ├── tray.ts                 … タスクトレイのメニュー構築
+│   │   ├── settings.ts             … 設定 JSON の読み書き（Zod 検証つき）
+│   │   ├── assets.ts               … dev / 本番でのアセットパス解決
+│   │   ├── vault/
+│   │   │   ├── crypto.ts           … scrypt 鍵導出、AES-256-GCM の封緘と開封
+│   │   │   ├── file.ts             … 原子的な書き込みとバックアップ世代管理
+│   │   │   ├── session.ts          … 復号モデルと鍵の保持、遅延保存、自動ロック
+│   │   │   └── repository.ts       … ブックマークの CRUD とタグ操作
+│   │   ├── ipc/
+│   │   │   ├── index.ts            … ハンドラ登録のオーケストレータ
+│   │   │   ├── register.ts         … Zod 検証と Result 化の共通ラッパ
+│   │   │   ├── schemas.ts          … IPC ペイロードのスキーマ定義
+│   │   │   ├── vaultHandlers.ts    … 作成・解錠・施錠・パスワード変更
+│   │   │   ├── bookmarkHandlers.ts … 一覧、CRUD、リンク検査、メタ取得
+│   │   │   ├── ioHandlers.ts       … 取り込み / 書き出しダイアログ
+│   │   │   └── systemHandlers.ts   … 設定、外部起動、ウィンドウ操作
+│   │   ├── metadata/
+│   │   │   ├── fetchPageMeta.ts    … タイトル / ファビコン取得、疎通確認
+│   │   │   └── faviconQueue.ts     … 未取得ドメインの並列取得キュー
+│   │   ├── clipboard/watcher.ts    … クリップボード監視と自己コピーの除外
+│   │   └── io/
+│   │       ├── importFile.ts       … Netscape HTML / JSON の解析
+│   │       └── exportFile.ts       … JSON / HTML / CSV の生成
+│   └── preload/index.ts            … ContextBridge（window.sbm）の公開
+├── shared/                         … Main と Renderer が共有する型と純粋関数
+│   ├── types.ts                    … ドメイン型
+│   ├── ipc.ts                      … チャンネル名と Result 型
+│   ├── url.ts                      … URL 判定・正規化・ドメイン抽出
+│   └── tags.ts                     … タグの正規化とマージ
+├── src/                            … Renderer プロセス（UI）
+│   ├── main.tsx                    … エントリ（フォント読み込みと Provider の合成）
+│   ├── App.tsx                     … 画面の切り替えと設定ダイアログの保持
+│   ├── index.css                   … Tailwind ベースとアクリル調の共有クラス
+│   ├── state/VaultProvider.tsx     … 解錠状態・データ・設定の単一情報源
+│   ├── hooks/
+│   │   ├── useLibrary.ts           … 絞り込み → 並び替え → グループ化の派生
+│   │   ├── useSelection.ts         … 複数選択と範囲選択
+│   │   ├── useCaptureFlow.ts       … 取り込みダイアログと重複解決
+│   │   └── useAppHotkeys.ts        … アプリ全体のキーボード操作
+│   ├── lib/
+│   │   ├── library.ts              … 絞り込み・並び替え・集計の純粋関数
+│   │   ├── tagSuggest.ts           … タグの自動引き継ぎ・候補生成・入力補完の純粋関数
+│   │   ├── searchQuery.ts          … 検索構文のパースと判定
+│   │   ├── format.ts               … 日時・件数・URL の表示整形
+│   │   └── cn.ts                   … クラス名連結
+│   └── components/
+│       ├── Workspace/              … 解錠後の画面オーケストレータ
+│       ├── TitleBar/               … フレームレスのカスタムタイトルバー
+│       ├── UnlockGate/             … ヴォールト作成 / 解錠
+│       ├── Sidebar/                … スマートビューとタグ一覧
+│       ├── Toolbar/                … 検索、並び替え、一括操作、入出力
+│       ├── BookmarkList/           … グループ見出しつき一覧（逐次描画）
+│       ├── Inspector/              … 選択項目の詳細と直接編集
+│       ├── CommandPalette/         … Ctrl+K の横断検索
+│       ├── StatusBar/              … 件数・監視状態・保存状態
+│       ├── dialogs/                … 取り込み / 重複 / タグ一括 / 設定
+│       └── ui/                     … Button・Input・TagInput・TagSuggestions・Modal・Select・Switch・Toast 等
+├── scripts/                        … dev サーバーと Main バンドルのビルド
+├── 起動.bat                        … 依存取得・ビルド・起動をまとめたランチャー
+├── makeexe.bat                     … インストーラーとポータブル版の生成
+├── tools/migrate_legacy.py         … 旧 PySide6 版 DB からの移行スクリプト
+├── project_style.json              … 配色・フォント・質感の単一情報源
+└── changelogs.json                 … 変更履歴
+```
 
----
+## データフロー
 
-## 機能詳細
+```text
+[クリップボード / 手動入力]
+        │
+        ▼
+Renderer（React）──invoke──▶ preload（ContextBridge）──▶ Main（Zod 検証）
+        ▲                                                     │
+        │                                                     ├─▶ metadata: タイトル / ファビコン取得（HTTP）
+        │                                                     ├─▶ repository: メモリ上のモデルを更新
+        │                                                     └─▶ session: gzip → AES-256-GCM → vault.sbm へ原子的書き込み
+        └───── event（favicon 更新 / 施錠 / 保存状態）─────────┘
+```
 
-### 🔑 暗号化DB
-- SQLiteを利用
-- **cryptography.Fernet** によるAES暗号化
-- URL・タイトル・タグ・グループをすべて暗号化保存
-- **正規化URLのハッシュ**(`url_hash`) で重複排除
+ネットワークアクセスは Main プロセスだけが行います。Renderer は CSP で `connect-src 'self'` に制限され、外部への接続経路を持ちません。
 
-### 🌐 URL処理
-- URL正規化（小文字化 / デフォルトポート削除 / 追跡パラメータ除去 / ソート済みクエリ化）
-- ドメイン自動抽出
-- タイトル自動取得（HTML `<title>` / `og:title` / `twitter:title`）
-- 軽量ファビコン取得対応（サムネイルは完全オフ）
+## 主要技術
 
-### 🏷️ タグ操作
-- 個別編集でのタグ追加
-- 複数選択からの **一括編集**（置換 / 追加 / 削除）
-- 大文字小文字を無視した重複排除
+| カテゴリ | 採用技術 |
+| --- | --- |
+| デスクトップ基盤 | Electron 33（contextIsolation 有効 / nodeIntegration 無効） |
+| ビルド | Vite 5（Renderer）、esbuild（Main・Preload） |
+| UI | React 18 + TypeScript 5 |
+| スタイル | Tailwind CSS v3、Radix UI、Framer Motion（LazyMotion + m） |
+| フォント | Space Grotesk / IBM Plex Sans JP / IBM Plex Mono（@fontsource でローカル同梱） |
+| 暗号 | Node.js crypto（scrypt + AES-256-GCM）、zlib gzip |
+| 入力検証 | Zod（IPC 境界と設定ファイル） |
+| パッケージング | electron-builder（NSIS / ポータブル） |
 
-### 🔎 検索 & 並び替え
-- キーワード検索（スペース区切りでAND検索）
-- タグ絞り込み
-- 並び順：  
-  - 追加順（新→旧 / 旧→新）  
-  - タイトル昇順 / 降順（ナチュラルソート）
+## 保存先
 
----
+データは 1 つのフォルダーにまとまっています。フォルダーごとコピーすれば、そのまま別の端末へ引っ越せます。
 
-## 使い方
+| 対象 | パス |
+| --- | --- |
+| データフォルダー | `%APPDATA%/SecretBookMarks/` |
+| ヴォールト | `<データフォルダー>/vault.sbm` |
+| バックアップ | `<データフォルダー>/backups/vault-*.sbm` |
+| 設定 | `<データフォルダー>/settings.json` |
+| Chromium のキャッシュ | `<データフォルダー>/chromium-cache/` |
 
-1. 初回起動時に **パスワードを設定**（以降は入力必須）
-2. ブックマーク追加方法：
-   - クリップボードにURLをコピー → 登録ダイアログが開く
-   - GUIの「手動追加」ボタン
-3. タグ一括編集や検索で整理
-4. ダブルクリックでURLをブラウザで開く
+Electron の既定では Chromium のキャッシュ（`GPUCache`、`Local Storage` など）がヴォールトと同じ階層に散らばるため、`chromium-cache` サブフォルダーへ隔離しています。このフォルダーは削除しても再生成されます。
 
----
+設定ファイルにパスワードや鍵は保存されません。マスターパスワードは復旧できないため、必ず控えを残してください。
 
+### ポータブル動作
 
+exe と同じ場所に `portable.txt` という空ファイルを置くと、データの保存先が exe の隣の `SecretBookMarks-data` フォルダーへ切り替わります。ポータブル版 exe（`SecretBookMarks-portable-*.exe`）は、この指定がなくても自動的にポータブル動作になります。USB メモリーへ入れて持ち歩く場合に利用してください。
 
+## 旧バージョンからの移行
 
-ファイル構成  
-SecretBookMarks/  
-├── secret_bookmarks.py   # エントリーポイント  
-├── gui.py                # GUIとメインウィンドウ  
-├── processor.py          # DBと暗号処理  
-├── utils.py              # URL処理・設定保存  
-├── config.py             # アプリ設定・UIテーマ   
+旧 PySide6 版のデータは、同梱のスクリプトで JSON へ書き出してから取り込みます。
 
-注意事項  
-  
-パスワードは復旧できません。必ず忘れないように管理してください。  
-  
-データベースはユーザー環境のローカルに保存されます。  
+```powershell
+python tools/migrate_legacy.py "C:\path\to\secret_bookmarks.db" legacy.json
+```
 
+出力された `legacy.json` を「入出力 → 取り込む」から読み込んでください。JSON は平文のため、取り込み後に削除してください。
 
-ライセンス
-© 2025 KisaragiIchigo
-MITライセンス
+## かんたん起動（コマンド操作が不要な方向け）
+
+| ファイル | 動作 |
+| --- | --- |
+| `起動.bat` | 初回は依存関係の取得とビルドを自動で行い、以降はそのままアプリを起動します。 |
+| `makeexe.bat` | インストーラーとポータブル版の exe を `release` フォルダーへ生成します。 |
+
+どちらも Node.js（LTS 版）がインストールされている必要があります。ソースコードを変更したあとは、`起動.bat` の前に `npm run build` を実行するか、`makeexe.bat` で作り直してください。
+
+## 開発
+
+```powershell
+npm install          # 依存関係の取得
+npm run dev          # Vite dev サーバー + Electron（Main 変更時は自動で再起動）
+npm run typecheck    # Renderer と Electron の両方を型チェック
+npm run build        # 型チェック → Renderer ビルド → Main / Preload バンドル
+npm start            # ビルド済みの成果物で Electron を起動
+npm run dist         # Windows 向けインストーラーとポータブル版を生成
+```
+
+`npm run dev` は Renderer を `http://localhost:5173` から読み込みます。本番ビルドは `file://` 起動になるため、アセットは相対パス（`base: './'`）で解決しています。
+
+## キーボードショートカット
+
+| キー | 動作 |
+| --- | --- |
+| `Ctrl+K` | コマンドパレット |
+| `Ctrl+N` | ブックマークを追加 |
+| `Ctrl+F` | 検索ボックスへフォーカス |
+| `Ctrl+A` | 表示中のすべてを選択 |
+| `Ctrl+L` | ヴォールトをロック |
+| `Delete` | 選択項目をゴミ箱へ（ゴミ箱では完全削除） |
+| `Ctrl+Shift+B` | ウィンドウを呼び出してクイック追加（グローバル） |
+| `Enter` / ダブルクリック | ブラウザで開く |
+
+## ライセンス
+
+© 2026 KisaragiIchigo / MIT License

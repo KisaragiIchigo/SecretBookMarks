@@ -1,0 +1,28 @@
+appId: dev.kisaragiichigo.secretbookmarks
+productName: SecretBookMarks
+copyright: © 2026 KisaragiIchigo
+directories:
+  output: release
+  buildResources: build
+files:
+  - dist/**/*
+  - package.json
+asar: true
+# 自動更新は提供しないため、更新情報（latest.yml）の生成を止める。
+# null にしないと publish 設定を探しに行き、ビルド最終段で provider の解決に失敗する。
+publish: null
+win:
+  icon: build/icon.ico
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: portable
+      arch: [x64]
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  shortcutName: SecretBookMarks
+portable:
+  artifactName: SecretBookMarks-portable-${version}.exe
