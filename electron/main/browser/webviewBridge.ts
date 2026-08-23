@@ -18,12 +18,13 @@ function isStream(url: string): boolean {
   return /\.(m3u8|mpd)(\?|#|$)/i.test(url)
 }
 
-function saveMedia(url: string, pageUrl: string, saveAs: boolean): void {
-  void downloads.start({ url, kind: isStream(url) ? 'hls' : 'file', pageUrl, saveAs })
+function saveMedia(url: string, pageUrl: string, pageTitle: string, saveAs: boolean): void {
+  void downloads.start({ url, kind: isStream(url) ? 'hls' : 'file', pageUrl, pageTitle, saveAs })
 }
 
 function buildContextMenu(contents: WebContents, params: ContextMenuParams): Menu {
   const pageUrl = contents.getURL()
+  const pageTitle = contents.getTitle()
   const withShift = shiftHeld.get(contents) === true
   const template: Electron.MenuItemConstructorOptions[] = []
 
@@ -47,11 +48,11 @@ function buildContextMenu(contents: WebContents, params: ContextMenuParams): Men
     const saveAsItem: Electron.MenuItemConstructorOptions = {
       // (&V) は Windows のニーモニック。メニューを開いて V を押すとこれが実行される。
       label: '名前を付けて保存(&V)',
-      click: () => saveMedia(target, pageUrl, true),
+      click: () => saveMedia(target, pageUrl, pageTitle, true),
     }
     const quickItem: Electron.MenuItemConstructorOptions = {
       label: media ? 'この動画を保存' : 'この画像を保存',
-      click: () => saveMedia(target, pageUrl, false),
+      click: () => saveMedia(target, pageUrl, pageTitle, false),
     }
     // Shift を押しながらの右クリックでは「名前を付けて保存」を先頭に出す。
     template.push(...(withShift ? [saveAsItem, quickItem] : [quickItem, saveAsItem]))

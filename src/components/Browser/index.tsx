@@ -15,7 +15,7 @@ import { IconButton } from '@/components/ui/IconButton'
 import { Input } from '@/components/ui/Input'
 import { cn } from '@/lib/cn'
 import { formatCount } from '@/lib/format'
-import { useBrowser, type BrowserTab } from '@/state/BrowserProvider'
+import { useBrowser } from '@/state/BrowserProvider'
 import type { WebviewElement } from '@/types/global'
 import { MediaPanel } from './MediaPanel'
 import { WebviewHost } from './WebviewHost'
@@ -111,14 +111,10 @@ export function Browser({ visible, homeUrl, onBookmarkPage }: BrowserProps) {
       url: candidate.url,
       kind: candidate.kind,
       pageUrl: active?.url ?? '',
+      pageTitle: active?.title ?? '',
       saveAs,
     })
   }
-
-  const patchFor = useCallback(
-    (tab: BrowserTab) => (patch: Partial<BrowserTab>) => patchTab(tab.id, patch),
-    [patchTab],
-  )
 
   return (
     <div className={cn('flex min-h-0 flex-1 flex-col', visible ? 'flex' : 'hidden')}>
@@ -218,9 +214,10 @@ export function Browser({ visible, homeUrl, onBookmarkPage }: BrowserProps) {
           {tabs.map((tab) => (
             <WebviewHost
               key={tab.id}
-              tab={tab}
+              tabId={tab.id}
+              initialUrl={tab.initialUrl}
               active={tab.id === activeId}
-              onPatch={patchFor(tab)}
+              onPatch={patchTab}
               onRegister={registerView}
             />
           ))}

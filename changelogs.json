@@ -4,6 +4,27 @@
   "entries": [
     {
       "date": "2026-08-23",
+      "summary": "戻る/進むが効かない問題と、保存時のファイル名が経路によって変わる問題を修正した",
+      "purpose": "実使用で挙がった2点への対応。",
+      "targets": [
+        "src/components/Browser/WebviewHost.tsx / index.tsx",
+        "electron/main/download/manager.ts / browser/webviewBridge.ts",
+        "electron/main/ipc/schemas.ts / electron/preload/index.ts"
+      ],
+      "changes": [
+        "戻る/進む: onPatch を毎レンダー作り直していたため、WebviewHost の useEffect が再実行され、イベントリスナーが付け外しされ続けていた。読み込み中は再描画が頻発するため did-navigate を取りこぼし、canGoBack が false のままボタンが無効化されていた。タブ id を伴う安定した関数を渡す形に変更し、ref コールバックも固定した。",
+        "戻る/進む: 取りこぼしの保険として、履歴の可否を 700ms 間隔で実際の webview へ問い合わせて追従させる。load-commit と did-frame-navigate も監視対象に追加した。",
+        "webview のナビゲーション API は Electron 43 の実行時にも生きていることを実測で確認済み（navigationHistory は webview 側には無く、canGoBack / goBack が正）。",
+        "ファイル名: 右クリック経由（video の src）と検出一覧経由（通信から拾った URL）で URL が異なるため、別々の名前が提案されていた。ページタイトルを基準にする方式へ変更し、両経路で同じ名前になるようにした。",
+        "ファイル名: URL に拡張子が無い場合も、ストリームなら .mp4、それ以外も URL の拡張子か .mp4 で補うようにした。"
+      ],
+      "impact": "保存時の既定名がページタイトルになる。タイトルが取れない場合は従来どおり URL 由来の名前になる。",
+      "concerns": [
+        "履歴の可否の追従に 700ms の定期問い合わせを使っている。イベントだけに頼るより確実だが、常時わずかな処理が走る。"
+      ]
+    },
+    {
+      "date": "2026-08-23",
       "summary": "Shift+右クリックのメニュー表示、ブックマークの内蔵ブラウザ表示、マウスのサイドボタンに対応した",
       "purpose": "実使用で挙がった3点への対応。",
       "targets": [

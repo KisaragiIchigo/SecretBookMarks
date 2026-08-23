@@ -92,6 +92,7 @@ const api = {
       kind: 'file' | 'hls'
       pageUrl: string
       fileName?: string
+      pageTitle?: string
       saveAs?: boolean
     }) => call<DownloadTask | null>(IPC.downloadStart, input),
     cancel: (id: string) => call<boolean>(IPC.downloadCancel, { id }),

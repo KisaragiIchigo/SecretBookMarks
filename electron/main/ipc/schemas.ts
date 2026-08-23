@@ -79,6 +79,7 @@ export const startDownloadSchema = z.object({
   kind: z.enum(['file', 'hls']),
   pageUrl: z.string().trim().max(4096).default(''),
   fileName: z.string().trim().max(200).optional(),
+  pageTitle: z.string().trim().max(300).optional(),
   saveAs: z.boolean().optional(),
 })
 

@@ -19,6 +19,8 @@ export interface StartDownloadInput {
   kind: 'file' | 'hls'
   pageUrl: string
   fileName?: string
+  /** ファイル名の元にするページタイトル */
+  pageTitle?: string
   /** true なら保存先をダイアログで確認する */
   saveAs?: boolean
 }
@@ -48,17 +50,38 @@ function uniquePath(dir: string, fileName: string): string {
   return candidate
 }
 
-function guessFileName(url: string, fallbackExt: string): string {
+/** URL の末尾から拡張子だけを取り出す。 */
+function extensionFromUrl(url: string, fallbackExt: string): string {
   try {
     const path = new URL(url).pathname
     const last = decodeURIComponent(path.split('/').filter(Boolean).pop() ?? '')
-    if (last && extname(last)) return sanitizeFileName(last)
-    if (last) return sanitizeFileName(`${last}${fallbackExt}`)
+    const ext = extname(last)
+    if (ext && ext.length <= 5) return ext
   } catch {
-    // URL として壊れていても、下の既定名で続行する。
+    // URL として壊れていても、下の既定へ落ちる。
+  }
+  return fallbackExt || '.mp4'
+}
+
+/**
+ * 保存時の既定のファイル名。
+ * 動画サイトの URL は /get_file/abc123 のように内容を表さないことが多いため、
+ * ページタイトルを優先する。右クリックからでも一覧からでも同じ名前になる。
+ */
+function guessFileName(url: string, fallbackExt: string, pageTitle?: string): string {
+  const ext = extensionFromUrl(url, fallbackExt)
+  const fromTitle = sanitizeFileName(pageTitle ?? '')
+  if (fromTitle && fromTitle !== 'download') return `${fromTitle}${ext}`
+
+  try {
+    const path = new URL(url).pathname
+    const last = decodeURIComponent(path.split('/').filter(Boolean).pop() ?? '')
+    if (last) return sanitizeFileName(extname(last) ? last : `${last}${ext}`)
+  } catch {
+    // 下の既定名へ落ちる。
   }
   const stamp = new Date().toISOString().slice(0, 19).replace(/[:T-]/g, '')
-  return sanitizeFileName(`video-${stamp}${fallbackExt}`)
+  return sanitizeFileName(`video-${stamp}${ext}`)
 }
 
 /**
@@ -118,7 +141,7 @@ class DownloadManager extends EventEmitter {
   async start(input: StartDownloadInput): Promise<DownloadTask | null> {
     const dir = this.downloadDir()
     const fallbackExt = input.kind === 'hls' ? '.mp4' : ''
-    let fileName = sanitizeFileName(input.fileName ?? guessFileName(input.url, fallbackExt))
+    let fileName = sanitizeFileName(input.fileName ?? guessFileName(input.url, fallbackExt, input.pageTitle))
     if (input.kind === 'hls' && !/\.(mp4|mkv|ts)$/i.test(fileName)) fileName = `${fileName}.mp4`
 
     let savePath: string
