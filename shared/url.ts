@@ -79,3 +79,15 @@ export function pickFirstUrl(text: string): string | null {
   const candidate = match[1].replace(/[),.;]+$/, '')
   return isHttpUrl(candidate) ? candidate : null
 }
+
+/** アルバム・ギャラリーページの URL パターン（/a/[識別子] 形式等） */
+export const ALBUM_URL_PATTERN = /^https?:\/\/[^/]+\/a\/[\w-]+/i
+
+/**
+ * URL がアルバム・ギャラリーページ（一括ダウンロード対象）かどうかを判定する。
+ */
+export function isAlbumUrl(url: string | null | undefined): boolean {
+  if (!url) return false
+  return ALBUM_URL_PATTERN.test(url.trim())
+}
+

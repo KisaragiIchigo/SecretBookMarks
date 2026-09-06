@@ -4,14 +4,18 @@ import {
   ArrowRight,
   BookmarkPlus,
   Film,
+  FolderDown,
   Home,
   KeyRound,
+  Loader2,
   RotateCw,
   Shield,
   ShieldOff,
   X,
 } from 'lucide-react'
-import type { CredentialCapture, MediaCandidate } from '@shared/types'
+import type { AlbumBundle, AlbumMediaItem, CredentialCapture, MediaCandidate } from '@shared/types'
+import { isAlbumUrl } from '@shared/url'
+import { Button } from '@/components/ui/Button'
 import { IconButton } from '@/components/ui/IconButton'
 import { Input } from '@/components/ui/Input'
 import { cn } from '@/lib/cn'
@@ -53,6 +57,8 @@ export function Browser({ visible, homeUrl, onBookmarkPage, onCaptureLogin }: Br
     selectTab,
     patchTab,
     mediaFor,
+    albumFor,
+    albumProgress,
     revealSignal,
   } = useBrowser()
   const views = useRef(new Map<string, WebviewElement>())
@@ -65,6 +71,8 @@ export function Browser({ visible, homeUrl, onBookmarkPage, onCaptureLogin }: Br
   const [adblockAllowed, setAdblockAllowed] = useState(false)
 
   const candidates = mediaFor(active?.contentsId ?? null)
+  const album = albumFor(active?.contentsId ?? null)
+  const isAlbumPage = isAlbumUrl(active?.url)
 
   useEffect(() => {
     void window.sbm.downloads.ffmpegStatus().then((status) => setFfmpegAvailable(status.available))
@@ -78,6 +86,15 @@ export function Browser({ visible, homeUrl, onBookmarkPage, onCaptureLogin }: Br
   useEffect(() => {
     if (revealSignal > 0) setPanelOpen(true)
   }, [revealSignal])
+
+  // アルバムが検出されたら、保存パネルを自動で開いて気付けるようにする。
+  const lastAlbumRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (album && album.pageUrl !== lastAlbumRef.current) {
+      lastAlbumRef.current = album.pageUrl
+      setPanelOpen(true)
+    }
+  }, [album])
 
   // ブラウザ画面を初めて開いたときにホームを1枚用意する。
   useEffect(() => {
@@ -140,17 +157,30 @@ export function Browser({ visible, homeUrl, onBookmarkPage, onCaptureLogin }: Br
     void activeView.loadURL(url)
   }
 
-  // ページ内の video 要素を直接読む。通信の監視で取りこぼした URL を拾うための保険。
+  // ページ内の video 要素およびアルバム構造を直接読む。
   const rescan = useCallback(async () => {
     const contentsId = active?.contentsId
     if (contentsId === undefined || contentsId === null) return
     setScanning(true)
     try {
-      await window.sbm.browser.scanPage(contentsId)
+      await Promise.all([
+        window.sbm.browser.scanPage(contentsId),
+        window.sbm.browser.extractAlbum(contentsId),
+      ])
     } finally {
       setScanning(false)
     }
   }, [active?.contentsId])
+
+  // ページの読み込み完了またはアルバムURL検知時に抽出を走らせる
+  useEffect(() => {
+    const contentsId = active?.contentsId
+    if (!contentsId) return
+
+    if (isAlbumUrl(active?.url) || !active?.loading) {
+      void window.sbm.browser.extractAlbum(contentsId)
+    }
+  }, [active?.contentsId, active?.loading, active?.url])
 
   // 現在のサイトに保存済みのログイン情報があるかを見ておく。
   useEffect(() => {
@@ -190,7 +220,7 @@ export function Browser({ visible, homeUrl, onBookmarkPage, onCaptureLogin }: Br
     setAdblockAllowed(result.allowed)
     // ルールの反映には再読み込みが要る
     navigateHistory('reload')
-  }, [active?.url])
+  }, [active?.url, navigateHistory])
 
   /**
    * 保存済みがあれば入力し、無ければ画面の入力内容を読んで保存を促す。
@@ -224,6 +254,77 @@ export function Browser({ visible, homeUrl, onBookmarkPage, onCaptureLogin }: Br
       saveAs,
     })
   }
+
+  const downloadAlbum = useCallback(
+    (
+      targetAlbum: AlbumBundle,
+      title: string,
+      saveAs: boolean,
+      withIndexPrefix: boolean,
+      options?: { concatVideos?: boolean; createSlideshow?: boolean; slideshowDuration?: number },
+    ) => {
+      const items = targetAlbum.items.map((item) => {
+        let fileName = item.fileName
+        if (!withIndexPrefix) {
+          fileName = fileName.replace(/^\d+_/, '')
+        }
+        return {
+          url: item.url,
+          kind: item.kind,
+          fileName,
+        }
+      })
+
+      void window.sbm.downloads.startAlbum({
+        albumTitle: title.trim() || targetAlbum.title,
+        pageUrl: active?.url ?? targetAlbum.pageUrl,
+        items,
+        saveAs,
+        withIndexPrefix,
+        concatVideos: options?.concatVideos,
+        createSlideshow: options?.createSlideshow,
+        slideshowDuration: options?.slideshowDuration,
+      })
+    },
+    [active?.url],
+  )
+
+  const saveAlbumItem = useCallback(
+    (item: AlbumMediaItem, saveAs: boolean) => {
+      void window.sbm.downloads.start({
+        url: item.url,
+        kind: 'file',
+        pageUrl: active?.url ?? '',
+        pageTitle: active?.title ?? '',
+        fileName: item.fileName,
+        saveAs,
+      })
+    },
+    [active?.title, active?.url],
+  )
+
+  /**
+   * アルバムの一括保存を即座に開始する。
+   * まだDOMの解析（album）が完了していなければ、その場で即座に抽出を試みてから保存する。
+   */
+  const handleQuickAlbumDownload = useCallback(async () => {
+    setPanelOpen(true)
+    if (album && album.items.length > 0) {
+      downloadAlbum(album, album.title, false, true)
+      return
+    }
+    const contentsId = active?.contentsId
+    if (contentsId === undefined || contentsId === null) return
+    setScanning(true)
+    try {
+      const res = await window.sbm.browser.extractAlbum(contentsId)
+      if (res && res.items.length > 0) {
+        downloadAlbum(res, res.title, false, true)
+      }
+    } finally {
+      setScanning(false)
+    }
+  }, [active?.contentsId, album, downloadAlbum])
 
   return (
     <div className={cn('flex min-h-0 flex-1 flex-col', visible ? 'flex' : 'hidden')}>
@@ -275,19 +376,40 @@ export function Browser({ visible, homeUrl, onBookmarkPage, onCaptureLogin }: Br
           />
         </form>
 
-        <button
-          type="button"
-          onClick={() => setPanelOpen((open) => !open)}
-          className={cn(
-            'no-drag inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md px-2 text-xs transition-colors',
-            candidates.length > 0
-              ? 'bg-teal-500/10 text-teal-300 shadow-glow hover:bg-teal-500/20'
-              : 'text-slate-400 hover:bg-white/[0.06]',
-          )}
-        >
-          <Film className="h-3.5 w-3.5" />
-          動画 {formatCount(candidates.length)}
-        </button>
+        {album || isAlbumPage ? (
+          <div className="no-drag flex items-center gap-1">
+            <Button
+              size="sm"
+              variant="primary"
+              icon={scanning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FolderDown className="h-3.5 w-3.5" />}
+              onClick={() => void handleQuickAlbumDownload()}
+              className="shadow-glow"
+              title="アルバム内の全画像・動画を一括ダウンロードします"
+            >
+              {album ? `一括保存 (${formatCount(album.items.length)})` : scanning ? '解析中...' : 'アルバムを一括保存'}
+            </Button>
+            <IconButton
+              label={panelOpen ? 'パネルを閉じる' : '詳細・保存オプションを開く'}
+              icon={<Film className="h-3.5 w-3.5" />}
+              active={panelOpen}
+              onClick={() => setPanelOpen((open) => !open)}
+            />
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setPanelOpen((open) => !open)}
+            className={cn(
+              'no-drag inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md px-2 text-xs transition-colors',
+              candidates.length > 0
+                ? 'bg-teal-500/10 text-teal-300 shadow-glow hover:bg-teal-500/20'
+                : 'text-slate-400 hover:bg-white/[0.06]',
+            )}
+          >
+            <Film className="h-3.5 w-3.5" />
+            動画 {formatCount(candidates.length)}
+          </button>
+        )}
 
         <IconButton
           label={
@@ -344,12 +466,18 @@ export function Browser({ visible, homeUrl, onBookmarkPage, onCaptureLogin }: Br
         {panelOpen ? (
           <MediaPanel
             candidates={candidates}
+            album={album}
+            albumProgress={albumProgress}
             pageUrl={active?.url ?? ''}
             ffmpegAvailable={ffmpegAvailable}
             scanning={scanning}
             onClose={() => setPanelOpen(false)}
             onRescan={() => void rescan()}
             onSave={saveMedia}
+            onSaveAlbumItem={saveAlbumItem}
+            onDownloadAlbum={downloadAlbum}
+            onCancelAlbumDownload={(id) => void window.sbm.downloads.cancelAlbum(id)}
+            onRevealAlbum={(id) => void window.sbm.downloads.revealAlbum(id)}
           />
         ) : null}
       </div>

@@ -2,14 +2,22 @@ import { app, dialog, shell } from 'electron'
 import { spawn, type ChildProcess } from 'node:child_process'
 import { EventEmitter } from 'node:events'
 import { randomUUID } from 'node:crypto'
-import { createWriteStream, existsSync, mkdirSync } from 'node:fs'
+import { createWriteStream, existsSync, mkdirSync, statSync } from 'node:fs'
 import { basename, dirname, extname, join } from 'node:path'
-import type { DownloadTask } from '@shared/types'
+import { IPC_EVENT } from '@shared/ipc'
+import type { AlbumDownloadProgress, AlbumDownloadTask, DownloadTask } from '@shared/types'
 import { loadSettings, saveSettings } from '../settings'
 import { session as vault } from '../vault/session'
 import { browserSession } from '../browser/session'
-import { getMainWindow } from '../window'
-import { STREAM_USER_AGENT, buildStreamArgs, resolveFfmpeg, streamDurationSeconds } from './ffmpeg'
+import { emitToRenderer, getMainWindow } from '../window'
+import {
+  STREAM_USER_AGENT,
+  buildStreamArgs,
+  concatVideos,
+  createImageSlideshow,
+  resolveFfmpeg,
+  streamDurationSeconds,
+} from './ffmpeg'
 
 const PROGRESS_THROTTLE_MS = 250
 const HISTORY_LIMIT = 300
@@ -23,6 +31,21 @@ export interface StartDownloadInput {
   pageTitle?: string
   /** true なら保存先をダイアログで確認する */
   saveAs?: boolean
+}
+
+export interface StartAlbumDownloadInput {
+  albumTitle: string
+  pageUrl: string
+  items: {
+    url: string
+    kind: 'image' | 'video'
+    fileName: string
+  }[]
+  saveAs?: boolean
+  withIndexPrefix?: boolean
+  concatVideos?: boolean
+  createSlideshow?: boolean
+  slideshowDuration?: number
 }
 
 // Windows のファイル名に使えない文字と制御文字を潰す。
@@ -45,6 +68,16 @@ function uniquePath(dir: string, fileName: string): string {
   let counter = 2
   while (existsSync(candidate)) {
     candidate = join(dir, `${base} (${counter})${ext}`)
+    counter += 1
+  }
+  return candidate
+}
+
+function uniqueDir(parentDir: string, folderName: string): string {
+  let candidate = join(parentDir, folderName)
+  let counter = 2
+  while (existsSync(candidate)) {
+    candidate = join(parentDir, `${folderName} (${counter})`)
     counter += 1
   }
   return candidate
@@ -161,6 +194,10 @@ class DownloadManager extends EventEmitter {
   private controllers = new Map<string, AbortController>()
   private lastEmit = new Map<string, number>()
 
+  private albumTasks = new Map<string, AlbumDownloadTask>()
+  private albumControllers = new Map<string, AbortController>()
+  private albumLastEmit = new Map<string, number>()
+
   init(): void {
     // 直リンクは fetch で自前に取得する（Referer を確実に送るため）。
     // ページ側が始めたダウンロードは Electron の既定動作に任せる。
@@ -186,6 +223,18 @@ class DownloadManager extends EventEmitter {
     for (const task of [...this.live.values()]) {
       this.finish(task.id, 'canceled', 'アプリの終了により中断しました。')
     }
+
+    // アルバムダウンロードも中断
+    for (const controller of this.albumControllers.values()) controller.abort()
+    this.albumControllers.clear()
+    for (const task of this.albumTasks.values()) {
+      if (task.status === 'running') {
+        task.status = 'canceled'
+        task.error = 'アプリの終了により中断しました。'
+        task.finishedAt = Date.now()
+        this.emitAlbumProgress(task, true)
+      }
+    }
   }
 
   downloadDir(): string {
@@ -209,7 +258,16 @@ class DownloadManager extends EventEmitter {
 
   reveal(id: string): void {
     const task = this.list().find((entry) => entry.id === id)
-    if (task && existsSync(task.savePath)) shell.showItemInFolder(task.savePath)
+    if (!task || !existsSync(task.savePath)) return
+    try {
+      if (statSync(task.savePath).isDirectory()) {
+        void shell.openPath(task.savePath)
+        return
+      }
+    } catch {
+      // stat 失敗時はフォールバック
+    }
+    shell.showItemInFolder(task.savePath)
   }
 
   cancel(id: string): void {
@@ -437,6 +495,266 @@ class DownloadManager extends EventEmitter {
     if (!force && now - (this.lastEmit.get(task.id) ?? 0) < PROGRESS_THROTTLE_MS) return
     this.lastEmit.set(task.id, now)
     this.emit('changed', task)
+  }
+
+  /** アルバム全体のダウンロードを開始する。 */
+  async startAlbum(input: StartAlbumDownloadInput): Promise<AlbumDownloadTask | null> {
+    const baseDir = this.downloadDir()
+    const safeFolder = sanitizeFileName(input.albumTitle) || 'album'
+    let folderPath: string
+
+    if (input.saveAs) {
+      const window = getMainWindow()
+      const lastDir = loadSettings().lastSaveDir ?? baseDir
+      const result = window
+        ? await dialog.showOpenDialog(window, {
+            title: 'アルバムの保存先フォルダーを選ぶ',
+            defaultPath: lastDir,
+            properties: ['openDirectory', 'createDirectory'],
+          })
+        : await dialog.showOpenDialog({
+            title: 'アルバムの保存先フォルダーを選ぶ',
+            defaultPath: lastDir,
+            properties: ['openDirectory', 'createDirectory'],
+          })
+      if (result.canceled || result.filePaths.length === 0) return null
+      const chosenParent = result.filePaths[0]
+      saveSettings({ lastSaveDir: chosenParent })
+      folderPath = uniqueDir(chosenParent, safeFolder)
+    } else {
+      folderPath = uniqueDir(baseDir, safeFolder)
+    }
+
+    mkdirSync(folderPath, { recursive: true })
+
+    const taskId = randomUUID()
+    const controller = new AbortController()
+    this.albumControllers.set(taskId, controller)
+
+    const task: AlbumDownloadTask = {
+      id: taskId,
+      albumTitle: input.albumTitle,
+      pageUrl: input.pageUrl,
+      folderPath,
+      totalCount: input.items.length,
+      completedCount: 0,
+      failedCount: 0,
+      receivedBytes: 0,
+      status: 'running',
+      currentFileName: null,
+      error: null,
+      startedAt: Date.now(),
+      finishedAt: null,
+    }
+    this.albumTasks.set(taskId, task)
+    this.emitAlbumProgress(task, true)
+
+    void this.runAlbumQueue(task, input.items, controller, input)
+    return task
+  }
+
+  cancelAlbum(id: string): void {
+    const controller = this.albumControllers.get(id)
+    if (controller) {
+      this.albumControllers.delete(id)
+      controller.abort()
+    }
+    const task = this.albumTasks.get(id)
+    if (task && task.status === 'running') {
+      task.status = 'canceled'
+      task.error = 'キャンセルしました。'
+      task.finishedAt = Date.now()
+      this.emitAlbumProgress(task, true)
+    }
+  }
+
+  revealAlbum(id: string): void {
+    const task = this.albumTasks.get(id)
+    if (task && existsSync(task.folderPath)) {
+      void shell.openPath(task.folderPath)
+    }
+  }
+
+  albumList(): AlbumDownloadTask[] {
+    return [...this.albumTasks.values()].sort((a, b) => b.startedAt - a.startedAt)
+  }
+
+  private async runAlbumQueue(
+    task: AlbumDownloadTask,
+    items: StartAlbumDownloadInput['items'],
+    controller: AbortController,
+    options: StartAlbumDownloadInput,
+  ): Promise<void> {
+    const CONCURRENCY = 3
+    let index = 0
+
+    const referer = task.pageUrl
+    const cookies = await browserSession()
+      .cookies.get({ url: task.pageUrl })
+      .catch(() => [])
+    const cookieHeader = cookies.map((c) => `${c.name}=${c.value}`).join('; ')
+
+    const downloadItem = async (item: StartAlbumDownloadInput['items'][number]): Promise<void> => {
+      if (controller.signal.aborted) return
+
+      const safeName = sanitizeFileName(item.fileName)
+      const savePath = join(task.folderPath, safeName)
+      task.currentFileName = item.fileName
+      this.emitAlbumProgress(task)
+
+      try {
+        const response = await fetch(item.url, {
+          signal: controller.signal,
+          redirect: 'follow',
+          headers: {
+            'User-Agent': STREAM_USER_AGENT,
+            Referer: referer,
+            Accept: '*/*',
+            ...(cookieHeader ? { Cookie: cookieHeader } : {}),
+          },
+        })
+
+        if (!response.ok || !response.body) {
+          task.failedCount += 1
+          this.emitAlbumProgress(task)
+          return
+        }
+
+        const file = createWriteStream(savePath)
+        const reader = response.body.getReader()
+
+        for (;;) {
+          const { done, value } = await reader.read()
+          if (done) break
+          if (value) {
+            task.receivedBytes += value.byteLength
+            this.emitAlbumProgress(task)
+            if (!file.write(Buffer.from(value))) {
+              await new Promise<void>((resolve) => file.once('drain', () => resolve()))
+            }
+          }
+        }
+
+        await new Promise<void>((resolve, reject) => {
+          file.end(() => resolve())
+          file.on('error', reject)
+        })
+
+        task.completedCount += 1
+        this.emitAlbumProgress(task)
+      } catch {
+        if (controller.signal.aborted) return
+        task.failedCount += 1
+        this.emitAlbumProgress(task)
+      }
+    }
+
+    const workers = Array.from({ length: Math.min(CONCURRENCY, items.length) }, async () => {
+      while (index < items.length && !controller.signal.aborted) {
+        const currentItem = items[index++]
+        await downloadItem(currentItem)
+      }
+    })
+
+    await Promise.all(workers)
+
+    // メディアダウンロード完了後の動画結合 / スライドショー生成処理
+    if (!controller.signal.aborted && task.completedCount > 0) {
+      const settings = loadSettings()
+      const shouldConcatVideos = options.concatVideos ?? settings.albumConcatVideos ?? false
+      const shouldCreateSlideshow = options.createSlideshow ?? settings.albumCreateSlideshow ?? false
+      const slideshowDuration = options.slideshowDuration ?? settings.albumSlideshowDuration ?? 3
+
+      const savedVideoPaths = items
+        .filter((i) => i.kind === 'video')
+        .map((i) => join(task.folderPath, sanitizeFileName(i.fileName)))
+        .filter((p) => existsSync(p) && statSync(p).size > 0)
+
+      const savedImagePaths = items
+        .filter((i) => i.kind === 'image')
+        .map((i) => join(task.folderPath, sanitizeFileName(i.fileName)))
+        .filter((p) => existsSync(p) && statSync(p).size > 0)
+
+      if (shouldConcatVideos && savedVideoPaths.length > 0) {
+        task.currentFileName = '動画を結合中...'
+        this.emitAlbumProgress(task, true)
+        const concatOut = uniquePath(task.folderPath, `${sanitizeFileName(task.albumTitle)}_動画結合.mp4`)
+        const concatRes = await concatVideos(savedVideoPaths, concatOut, controller.signal)
+        if (concatRes.ok && existsSync(concatOut)) {
+          task.receivedBytes += statSync(concatOut).size
+        }
+      }
+
+      if (!controller.signal.aborted && shouldCreateSlideshow && savedImagePaths.length > 0) {
+        task.currentFileName = '画像スライドショー動画を生成中...'
+        this.emitAlbumProgress(task, true)
+        const slideshowOut = uniquePath(task.folderPath, `${sanitizeFileName(task.albumTitle)}_スライドショー.mp4`)
+        const slideshowRes = await createImageSlideshow(
+          savedImagePaths,
+          slideshowOut,
+          slideshowDuration,
+          controller.signal,
+        )
+        if (slideshowRes.ok && existsSync(slideshowOut)) {
+          task.receivedBytes += statSync(slideshowOut).size
+        }
+      }
+    }
+
+    if (controller.signal.aborted) {
+      task.status = 'canceled'
+      task.error = 'キャンセルしました。'
+    } else if (task.completedCount === 0 && task.failedCount > 0) {
+      task.status = 'failed'
+      task.error = 'すべてのメディアの保存に失敗しました。'
+    } else {
+      task.status = 'completed'
+    }
+
+    task.finishedAt = Date.now()
+    task.currentFileName = null
+    this.albumControllers.delete(task.id)
+    this.emitAlbumProgress(task, true)
+
+    if (vault.isUnlocked) {
+      const summaryTask: DownloadTask = {
+        id: task.id,
+        url: task.pageUrl,
+        kind: 'file',
+        fileName: `[アルバム] ${task.albumTitle} (${task.completedCount}/${task.totalCount}件)`,
+        savePath: task.folderPath,
+        status: task.status,
+        receivedBytes: task.receivedBytes,
+        totalBytes: task.receivedBytes,
+        progress: 1,
+        error: task.error,
+        startedAt: task.startedAt,
+        finishedAt: task.finishedAt,
+        pageUrl: task.pageUrl,
+      }
+      const model = vault.getModel()
+      model.downloads = [summaryTask, ...model.downloads].slice(0, HISTORY_LIMIT)
+      vault.markDirty()
+      this.emit('changed', summaryTask)
+    }
+  }
+
+  private emitAlbumProgress(task: AlbumDownloadTask, force = false): void {
+    const now = Date.now()
+    if (!force && now - (this.albumLastEmit.get(task.id) ?? 0) < PROGRESS_THROTTLE_MS) return
+    this.albumLastEmit.set(task.id, now)
+
+    const progress: AlbumDownloadProgress = {
+      taskId: task.id,
+      completedCount: task.completedCount,
+      failedCount: task.failedCount,
+      totalCount: task.totalCount,
+      receivedBytes: task.receivedBytes,
+      currentFileName: task.currentFileName,
+      status: task.status,
+      error: task.error,
+    }
+    emitToRenderer(IPC_EVENT.albumDownloadProgress, progress)
   }
 }
 

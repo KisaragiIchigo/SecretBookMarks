@@ -5,8 +5,10 @@ import { downloads } from '../download/manager'
 import { emitToRenderer, getMainWindow } from '../window'
 import { addUserBlock } from './adblock'
 import { clearMediaFor, mediaCandidates } from './mediaSniffer'
+import { clearCachedAlbum, extractAlbumMedia, getCachedAlbum } from './albumExtractor'
 import { resolvePageTitle } from './pageTitle'
 import { browserSession } from './session'
+import { isAlbumUrl } from '@shared/url'
 
 const BROWSER_PARTITION = 'sbm-browser'
 
@@ -92,7 +94,49 @@ function buildContextMenu(contents: WebContents, params: ContextMenuParams): Men
   }
 
   const detected = mediaCandidates(contents.id)
-  if (detected.length > 0 && !target) {
+  const cachedAlbum = getCachedAlbum(contents.id)
+  const isAlbum = isAlbumUrl(contents.getURL())
+
+  if (cachedAlbum && cachedAlbum.items.length > 0) {
+    template.push({
+      label: `このアルバムをフォルダとして保存（${cachedAlbum.items.length}件）(&A)`,
+      click: () => {
+        void downloads.startAlbum({
+          albumTitle: cachedAlbum.title,
+          pageUrl: cachedAlbum.pageUrl,
+          items: cachedAlbum.items.map((it) => ({
+            url: it.url,
+            kind: it.kind,
+            fileName: it.fileName,
+          })),
+          saveAs: withShift,
+          withIndexPrefix: true,
+        })
+      },
+    })
+    template.push({ type: 'separator' })
+  } else if (isAlbum) {
+    template.push({
+      label: 'このアルバムをフォルダとして保存(&A)',
+      click: async () => {
+        const album = await extractAlbumMedia(contents.id, { retries: 3, delayMs: 500 })
+        if (album && album.items.length > 0) {
+          void downloads.startAlbum({
+            albumTitle: album.title,
+            pageUrl: album.pageUrl,
+            items: album.items.map((it) => ({
+              url: it.url,
+              kind: it.kind,
+              fileName: it.fileName,
+            })),
+            saveAs: withShift,
+            withIndexPrefix: true,
+          })
+        }
+      },
+    })
+    template.push({ type: 'separator' })
+  } else if (detected.length > 0 && !target) {
     template.push({
       label: `このページで見つかった動画（${detected.length}件）を表示(&V)`,
       click: () =>
@@ -236,13 +280,39 @@ export function registerWebviewBridge(): void {
     })
 
     contents.on('did-start-navigation', (details) => {
-      if (details.isMainFrame && !details.isSameDocument) clearMediaFor(contents.id)
+      if (details.isMainFrame && !details.isSameDocument) {
+        clearMediaFor(contents.id)
+        clearCachedAlbum(contents.id)
+      }
     })
+
+    let albumScanTimer: NodeJS.Timeout | null = null
+    const scheduleAlbumScan = () => {
+      if (contents.isDestroyed()) return
+      if (albumScanTimer) clearTimeout(albumScanTimer)
+      albumScanTimer = setTimeout(() => {
+        albumScanTimer = null
+        if (contents.isDestroyed()) return
+        const url = contents.getURL()
+        if (isAlbumUrl(url)) {
+          void extractAlbumMedia(contents.id, { retries: 2, delayMs: 800 })
+        }
+      }, 350)
+    }
+
+    contents.on('dom-ready', scheduleAlbumScan)
+    contents.on('did-finish-load', scheduleAlbumScan)
+    contents.on('did-stop-loading', scheduleAlbumScan)
+    contents.on('did-navigate-in-page', scheduleAlbumScan)
 
     contents.on('context-menu', (_contextEvent, params) => {
       buildContextMenu(contents, params).popup({ window: getMainWindow() ?? undefined })
     })
 
-    contents.on('destroyed', () => clearMediaFor(contents.id))
+    contents.on('destroyed', () => {
+      if (albumScanTimer) clearTimeout(albumScanTimer)
+      clearMediaFor(contents.id)
+      clearCachedAlbum(contents.id)
+    })
   })
 }

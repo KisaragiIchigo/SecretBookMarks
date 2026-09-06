@@ -39,6 +39,7 @@ export const IPC = {
   browserMediaClear: 'browser:media-clear',
   browserScanPage: 'browser:scan-page',
   browserPageMeta: 'browser:page-meta',
+  browserExtractAlbum: 'browser:extract-album',
 
   credentialList: 'credential:list',
   credentialForOrigin: 'credential:for-origin',
@@ -67,6 +68,9 @@ export const IPC = {
   downloadReveal: 'download:reveal',
   downloadChooseDir: 'download:choose-dir',
   downloadFfmpegStatus: 'download:ffmpeg-status',
+  downloadStartAlbum: 'download:start-album',
+  downloadCancelAlbum: 'download:cancel-album',
+  downloadRevealAlbum: 'download:reveal-album',
 
   windowMinimize: 'window:minimize',
   windowToggleMaximize: 'window:toggle-maximize',
@@ -89,7 +93,9 @@ export const IPC_EVENT = {
   saveState: 'event:save-state',
   maximizeChanged: 'event:maximize-changed',
   mediaDetected: 'event:media-detected',
+  albumDetected: 'event:album-detected',
   downloadChanged: 'event:download-changed',
+  albumDownloadProgress: 'event:album-download-progress',
   browserOpenUrl: 'event:browser-open-url',
   browserCapturePage: 'event:browser-capture-page',
   browserNavigate: 'event:browser-navigate',

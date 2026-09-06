@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import type { DownloadTask, MediaCandidate } from '@shared/types'
+import type { AlbumBundle, AlbumDownloadProgress, DownloadTask, MediaCandidate } from '@shared/types'
 import { useVault } from './VaultProvider'
 
 export interface BrowserTab {
@@ -29,6 +29,8 @@ interface BrowserContextValue {
   downloads: DownloadTask[]
   activeDownloadCount: number
   mediaFor: (contentsId: number | null) => MediaCandidate[]
+  albumFor: (contentsId: number | null) => AlbumBundle | null
+  albumProgress: AlbumDownloadProgress | null
   /** 右クリックメニューから「検出済みの動画を表示」が押された回数。パネルを開く合図に使う */
   revealSignal: number
   openTab: (url: string, activate?: boolean) => void
@@ -61,6 +63,8 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
   const [activeId, setActiveId] = useState<string | null>(null)
   const [downloads, setDownloads] = useState<DownloadTask[]>([])
   const [mediaByContents, setMediaByContents] = useState<Record<number, MediaCandidate[]>>({})
+  const [albumByContents, setAlbumByContents] = useState<Record<number, AlbumBundle | null>>({})
+  const [albumProgress, setAlbumProgress] = useState<AlbumDownloadProgress | null>(null)
   const [revealSignal, setRevealSignal] = useState(0)
 
   const openTab = useCallback((url: string, activate = true) => {
@@ -141,6 +145,8 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
       setTabs([])
       setActiveId(null)
       setMediaByContents({})
+      setAlbumByContents({})
+      setAlbumProgress(null)
       return
     }
     void refreshDownloads()
@@ -152,6 +158,9 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
         setMediaByContents((current) => ({ ...current, [contentsId]: candidates }))
         if (reveal) setRevealSignal((value) => value + 1)
       }),
+      window.sbm.events.onAlbumDetected(({ contentsId, album }) => {
+        setAlbumByContents((current) => ({ ...current, [contentsId]: album }))
+      }),
       window.sbm.events.onDownloadChanged((task) => {
         setDownloads((current) => {
           const index = current.findIndex((entry) => entry.id === task.id)
@@ -161,6 +170,9 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
           return next
         })
       }),
+      window.sbm.events.onAlbumDownloadProgress((progress) => {
+        setAlbumProgress(progress)
+      }),
       window.sbm.events.onBrowserOpenUrl(({ url, active }) => openTab(url, active)),
     ]
     return () => unsubscribers.forEach((unsubscribe) => unsubscribe())
@@ -169,6 +181,11 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
   const mediaFor = useCallback(
     (contentsId: number | null) => (contentsId === null ? [] : (mediaByContents[contentsId] ?? [])),
     [mediaByContents],
+  )
+
+  const albumFor = useCallback(
+    (contentsId: number | null) => (contentsId === null ? null : (albumByContents[contentsId] ?? null)),
+    [albumByContents],
   )
 
   const active = useMemo(() => tabs.find((tab) => tab.id === activeId) ?? null, [activeId, tabs])
@@ -190,6 +207,8 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
       downloads,
       activeDownloadCount,
       mediaFor,
+      albumFor,
+      albumProgress,
       revealSignal,
       openTab: (url: string, activate = true) => (url ? openTab(url, activate) : ensureHome()),
       closeTab,
@@ -208,6 +227,8 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
       downloads,
       activeDownloadCount,
       mediaFor,
+      albumFor,
+      albumProgress,
       revealSignal,
       openTab,
       ensureHome,

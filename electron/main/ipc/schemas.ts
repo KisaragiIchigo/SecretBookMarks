@@ -90,7 +90,28 @@ export const startDownloadSchema = z.object({
   saveAs: z.boolean().optional(),
 })
 
+export const startAlbumDownloadSchema = z.object({
+  albumTitle: z.string().trim().min(1).max(250),
+  pageUrl: z.string().trim().max(4096),
+  items: z
+    .array(
+      z.object({
+        url: httpUrlSchema,
+        kind: z.enum(['image', 'video']),
+        fileName: z.string().trim().min(1).max(250),
+      }),
+    )
+    .min(1)
+    .max(2000),
+  saveAs: z.boolean().optional(),
+  withIndexPrefix: z.boolean().optional(),
+  concatVideos: z.boolean().optional(),
+  createSlideshow: z.boolean().optional(),
+  slideshowDuration: z.number().int().min(1).max(30).optional(),
+})
+
 export const downloadIdSchema = z.object({ id: idSchema })
+export const albumTaskIdSchema = z.object({ id: idSchema })
 
 export const adblockToggleSchema = z.object({ enabled: z.boolean() })
 

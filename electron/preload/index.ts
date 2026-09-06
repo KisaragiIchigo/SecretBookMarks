@@ -2,6 +2,9 @@ import { contextBridge, ipcRenderer } from 'electron'
 import { IPC, IPC_EVENT, type IpcResult } from '@shared/ipc'
 import type {
   AdblockStatusView,
+  AlbumBundle,
+  AlbumDownloadProgress,
+  AlbumDownloadTask,
   AppSettings,
   Bookmark,
   BookmarkInput,
@@ -82,6 +85,7 @@ const api = {
     mediaList: (contentsId: number) => call<MediaCandidate[]>(IPC.browserMediaList, { contentsId }),
     mediaClear: (contentsId: number) => call<boolean>(IPC.browserMediaClear, { contentsId }),
     scanPage: (contentsId: number) => call<MediaCandidate[]>(IPC.browserScanPage, { contentsId }),
+    extractAlbum: (contentsId: number) => call<AlbumBundle | null>(IPC.browserExtractAlbum, { contentsId }),
     pageMeta: (contentsId: number) =>
       call<{ title: string; keywords: string[] }>(IPC.browserPageMeta, { contentsId }),
     navigate: (contentsId: number, direction: 'back' | 'forward' | 'reload' | 'stop') =>
@@ -114,6 +118,18 @@ const api = {
     clearHistory: () => call<number>(IPC.downloadClearHistory),
     chooseDir: () => call<AppSettings | null>(IPC.downloadChooseDir),
     ffmpegStatus: () => call<{ available: boolean; path: string | null }>(IPC.downloadFfmpegStatus),
+    startAlbum: (input: {
+      albumTitle: string
+      pageUrl: string
+      items: { url: string; kind: 'image' | 'video'; fileName: string }[]
+      saveAs?: boolean
+      withIndexPrefix?: boolean
+      concatVideos?: boolean
+      createSlideshow?: boolean
+      slideshowDuration?: number
+    }) => call<AlbumDownloadTask | null>(IPC.downloadStartAlbum, input),
+    cancelAlbum: (id: string) => call<boolean>(IPC.downloadCancelAlbum, { id }),
+    revealAlbum: (id: string) => call<boolean>(IPC.downloadRevealAlbum, { id }),
   },
   credentials: {
     list: () => call<CredentialSummary[]>(IPC.credentialList),
@@ -161,7 +177,12 @@ const api = {
     onMediaDetected: (
       listener: (payload: { contentsId: number; candidates: MediaCandidate[]; reveal?: boolean }) => void,
     ) => subscribe(IPC_EVENT.mediaDetected, listener),
+    onAlbumDetected: (
+      listener: (payload: { contentsId: number; album: AlbumBundle | null }) => void,
+    ) => subscribe(IPC_EVENT.albumDetected, listener),
     onDownloadChanged: (listener: (task: DownloadTask) => void) => subscribe(IPC_EVENT.downloadChanged, listener),
+    onAlbumDownloadProgress: (listener: (progress: AlbumDownloadProgress) => void) =>
+      subscribe(IPC_EVENT.albumDownloadProgress, listener),
     onBrowserOpenUrl: (listener: (payload: { url: string; active: boolean }) => void) =>
       subscribe(IPC_EVENT.browserOpenUrl, listener),
     onBrowserCapturePage: (

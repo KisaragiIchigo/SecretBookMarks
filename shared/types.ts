@@ -156,6 +156,14 @@ export interface AppSettings {
   viewMode: ViewMode
   /** ゴミ箱の自動完全削除までの日数。0 で自動削除しない */
   trashRetentionDays: number
+  /** アルバム保存時: 動画をすべて連結した動画を生成する */
+  albumConcatVideos: boolean
+  /** アルバム保存時: 画像をスライドショー動画にする（1コマ3秒） */
+  albumCreateSlideshow: boolean
+  /** アルバム保存時: 上記両方を生成する */
+  albumGenerateBoth: boolean
+  /** スライドショーの1コマ秒数（既定: 3秒） */
+  albumSlideshowDuration: number
 }
 
 export interface VaultStatus {
@@ -282,3 +290,51 @@ export interface FilterListInfo {
   title: string
   url: string
 }
+
+// ===== アルバム / ギャラリー一括メディア =====
+
+export interface AlbumMediaItem {
+  id: string
+  url: string
+  kind: 'image' | 'video'
+  fileName: string
+  previewUrl?: string
+  sizeBytes?: number | null
+}
+
+export interface AlbumBundle {
+  site: string
+  title: string
+  pageUrl: string
+  items: AlbumMediaItem[]
+  imageCount: number
+  videoCount: number
+}
+
+export interface AlbumDownloadTask {
+  id: string
+  albumTitle: string
+  pageUrl: string
+  folderPath: string
+  totalCount: number
+  completedCount: number
+  failedCount: number
+  receivedBytes: number
+  status: DownloadStatus
+  currentFileName: string | null
+  error: string | null
+  startedAt: number
+  finishedAt: number | null
+}
+
+export interface AlbumDownloadProgress {
+  taskId: string
+  completedCount: number
+  failedCount: number
+  totalCount: number
+  receivedBytes: number
+  currentFileName: string | null
+  status: DownloadStatus
+  error: string | null
+}
+

@@ -34,6 +34,10 @@ const settingsSchema = z.object({
     .default('added-desc'),
   viewMode: z.enum(['grouped', 'flat']).default('grouped'),
   trashRetentionDays: z.number().int().min(0).max(3650).default(30),
+  albumConcatVideos: z.boolean().default(false),
+  albumCreateSlideshow: z.boolean().default(false),
+  albumGenerateBoth: z.boolean().default(false),
+  albumSlideshowDuration: z.number().int().min(1).max(30).default(3),
 })
 
 export const settingsPatchSchema = settingsSchema.deepPartial()

@@ -1,6 +1,14 @@
 import { dialog, webContents } from 'electron'
 import { IPC } from '@shared/ipc'
-import type { AdblockStatusView, AppSettings, DownloadTask, FilterListInfo, MediaCandidate } from '@shared/types'
+import type {
+  AdblockStatusView,
+  AlbumBundle,
+  AlbumDownloadTask,
+  AppSettings,
+  DownloadTask,
+  FilterListInfo,
+  MediaCandidate,
+} from '@shared/types'
 import {
   FILTER_LISTS,
   adblockStatus,
@@ -13,6 +21,7 @@ import {
 import { clearBrowserData } from '../browser/session'
 import { clearMediaFor, mediaCandidates } from '../browser/mediaSniffer'
 import { scanPageMedia } from '../browser/domScanner'
+import { extractAlbumMedia } from '../browser/albumExtractor'
 import { resolvePageMeta, resolvePageTitle } from '../browser/pageTitle'
 import { enqueueFavicon } from '../metadata/faviconQueue'
 import { downloads } from '../download/manager'
@@ -22,11 +31,13 @@ import { getMainWindow } from '../window'
 import { register, registerVoid } from './register'
 import {
   adblockToggleSchema,
+  albumTaskIdSchema,
   allowlistSchema,
   allowlistToggleSchema,
   contentsIdSchema,
   downloadIdSchema,
   navigateSchema,
+  startAlbumDownloadSchema,
   startDownloadSchema,
 } from './schemas'
 
@@ -71,6 +82,10 @@ export function registerBrowserHandlers(): void {
 
   register(IPC.browserScanPage, contentsIdSchema, ({ contentsId }): Promise<MediaCandidate[]> =>
     scanPageMedia(contentsId),
+  )
+
+  register(IPC.browserExtractAlbum, contentsIdSchema, ({ contentsId }): Promise<AlbumBundle | null> =>
+    extractAlbumMedia(contentsId),
   )
 
   register(IPC.browserMediaClear, contentsIdSchema, ({ contentsId }) => {
@@ -147,6 +162,24 @@ export function registerBrowserHandlers(): void {
 
   register(IPC.downloadReveal, downloadIdSchema, ({ id }) => {
     downloads.reveal(id)
+    return true
+  })
+
+  register(
+    IPC.downloadStartAlbum,
+    startAlbumDownloadSchema,
+    async (input): Promise<AlbumDownloadTask | null> => {
+      return downloads.startAlbum(input)
+    },
+  )
+
+  register(IPC.downloadCancelAlbum, albumTaskIdSchema, ({ id }) => {
+    downloads.cancelAlbum(id)
+    return true
+  })
+
+  register(IPC.downloadRevealAlbum, albumTaskIdSchema, ({ id }) => {
+    downloads.revealAlbum(id)
     return true
   })
 
